@@ -23,6 +23,7 @@ type UsingUserStruct struct {
 }
 type UsingUserBalanceStruct struct {
 	Current   float64 `json:"current" ,db:"current"`
+	Accrual   float64 `json:"accrual" ,db:"accrual"`
 	Withdrawn float64 `json:"withdrawn" ,db:"withdrawn"`
 }
 type OrderToWithdrawStruct struct {
@@ -33,24 +34,34 @@ type UsingOrderStruct struct {
 	IdOrder    int       `json:"id_order" ,db:"id_order"`
 	IdUser     int       `json:"id_user,omitempty" ,db:"id_user"`
 	State      string    `json:"state,omitempty" ,db:"state"`
-	Accrual    float64   `json:"accrual,omitempty" ,db:"accrual"`
-	Withdraw   float64   `json:"withdraw,omitempty" ,db:"withdraw"`
+	Accrual    float64   `json:"accrual" ,db:"accrual"`
 	UploadedAt time.Time `json:"uploaded_at,omitempty" ,db:"uploaded_at"`
 }
+type UsingWithdrawStruct struct {
+	IdOrder     int       `json:"id_order" ,db:"id_order"`
+	Withdraw    float64   `json:"withdraw" ,db:"withdraw"`
+	ProcessedAt time.Time `json:"processed_at,omitempty" ,db:"processed_at"`
+}
 type PostgresDB struct {
-	queryInitUsers             string
-	querySelectMaxIdUsers      string
-	querySelectCountUsers      string
-	querySelectIdByLogin       string
-	querySelectCountByLogin    string
-	queryInsertUser            string
-	queryInitOrders            string
-	querySelectCountOrdersById string
-	querySelectOrderByUserId   string
-	querySelectOrderStateById  string
-	querySelectCountByOrder    string
-	queryInsertOrder           string
-	querySelectBalance         string
+	queryInitUsers               string
+	querySelectMaxIdUsers        string
+	querySelectCountUsers        string
+	querySelectIdByLogin         string
+	querySelectCountByLogin      string
+	queryInsertUser              string
+	queryInitOrders              string
+	queryInitWithdraws           string
+	queryInitBalance             string
+	querySelectCountOrdersById   string
+	querySelectOrderByUserId     string
+	querySelectWithdrawsByUserId string
+	querySelectOrderStateById    string
+	querySelectCountByOrder      string
+	queryInsertOrder             string
+	querySelectBalance           string
+	queryInsertWithdraw          string
+	queryUpdateIncreaseBalance   string
+	queryUpdateDecreaseBalance   string
 }
 
 var PostgresDBRun = PostgresDB{
@@ -59,6 +70,11 @@ var PostgresDBRun = PostgresDB{
 				  login 	  TEXT UNIQUE NOT NULL,
 				  password		   TEXT NOT NULL);`,
 	//todo: creation date, is deleted
+	queryInitBalance: `CREATE TABLE IF NOT EXISTS balance (
+				  id_user           INT UNIQUE PRIMARY KEY,
+				  	  accruals	double precision,
+				  	  withdraws	double precision,
+				  	  current	double precision);`,
 	querySelectMaxIdUsers:   `SELECT MAX(id_user) FROM users;`,
 	querySelectCountUsers:   `SELECT count(id_user) FROM users;`,
 	querySelectIdByLogin:    `SELECT id_user FROM users WHERE login = $1;`,
@@ -72,15 +88,28 @@ var PostgresDBRun = PostgresDB{
 				  id_user           INT NOT NULL,
 				  state 	  TEXT NOT NULL,
 				  accrual	double precision ,
-					withdraw double precision,
 					uploaded_at TIMESTAMP );`,
-	querySelectCountOrdersById: `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
-	querySelectOrderByUserId:   `SELECT id_order, id_user, state, accrual, withdraw, uploaded_at FROM orders WHERE id_user = $1`,
+	queryInitWithdraws: `CREATE TABLE IF NOT EXISTS withdraws (
+				  id_order           bigint UNIQUE PRIMARY KEY NOT NULL,
+				  id_user           INT NOT NULL,
+					withdraw double precision,
+					processed_at TIMESTAMP );`,
+	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
+	querySelectOrderByUserId:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_user = $1`,
+	querySelectWithdrawsByUserId: `SELECT id_order, id_user, withdraw, processed_at FROM orders WHERE id_user = $1`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
 					)
 					VALUES($1, $2, $3, $4, $5);`,
-	querySelectBalance: `SELECT SUM(accrual)-SUM(withdrawn), SUM(withdrawn) FROM orders WHERE id_user = $1;`,
+	queryInsertWithdraw: `INSERT INTO orders(
+					id_order, id_user, state, accrual, processed_at
+					)
+					VALUES($1, $2, $3, $4, $5);`,
+	querySelectBalance: `SELECT current, accrual, withdrawn FROM balance WHERE id_user = $1;`,
+	queryUpdateIncreaseBalance: `UPDATE balance set current = current + $2, accrual = accrual + $2 
+					where id_user = $1;`,
+	queryUpdateDecreaseBalance: `UPDATE balance set current = current - $2, withdrawn = withdrawn + $2 
+					where id_user = $1;`,
 }
 
 func InitTables(config *config.Config) (err error) {
@@ -166,7 +195,24 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err = db.ExecContext(ctx, PostgresDBRun.queryInsertOrder, order.IdOrder, order.IdUser, order.State, order.Accrual, order.UploadedAt)
+	_, err = db.ExecContext(ctx, PostgresDBRun.queryInsertOrder, order.IdOrder, order.IdUser, order.State, 0, order.UploadedAt)
+	if err != nil {
+		return err
+	}
+	fmt.Println(msg)
+	return
+}
+
+func InsertWithdraw(config *config.Config, order *UsingWithdrawStruct, userId *int) (err error) {
+	var msg string
+	db, err := sql.Open("pgx", config.Database)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	_, err = db.ExecContext(ctx, PostgresDBRun.queryInsertWithdraw, order.IdOrder, userId, order.Withdraw, order.ProcessedAt)
 	if err != nil {
 		return err
 	}
@@ -176,7 +222,6 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 
 func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (arrOrders []UsingOrderStruct, err error) {
 	var msg string
-	var count int
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return arrOrders, err
@@ -197,10 +242,6 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (arrOrders []U
 	}
 	fmt.Println(arrOrders)
 	if err != nil {
-		return arrOrders, err
-	}
-	if count != 0 {
-		msg = "order exists"
 		return arrOrders, err
 	}
 	fmt.Println(msg)
@@ -242,4 +283,53 @@ func ReturnOrderInfoById(config *config.Config, orderId *int) (orderInfo UsingOr
 	}
 	fmt.Println(msg)
 	return orderInfo, err
+}
+
+func ChangeBalanceByUserId(config *config.Config, IdUser *int, action string, sum *float64) (err error) {
+	db, err := sql.Open("pgx", config.Database)
+	if err != nil {
+		return
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	if action == "increase" {
+		_, err = db.ExecContext(ctx, PostgresDBRun.queryUpdateIncreaseBalance, IdUser, sum)
+		if err != nil {
+			return
+		}
+	} else if action == "decrease" {
+		_, err = db.ExecContext(ctx, PostgresDBRun.queryUpdateDecreaseBalance, IdUser, sum)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (arrWithdraws []UsingWithdrawStruct, err error) {
+	var msg string
+	db, err := sql.Open("pgx", config.Database)
+	if err != nil {
+		return
+	}
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectWithdrawsByUserId, userId)
+	defer rows.Close()
+	fmt.Println(rows)
+	for rows.Next() {
+		var withdrawInfo UsingWithdrawStruct
+		err := rows.Scan(&withdrawInfo.IdOrder, &withdrawInfo.Withdraw, &withdrawInfo.ProcessedAt)
+		if err != nil {
+			return arrWithdraws, err
+		}
+		arrWithdraws = append(arrWithdraws, withdrawInfo)
+	}
+	fmt.Println(arrWithdraws)
+	if err != nil {
+		return arrWithdraws, err
+	}
+	fmt.Println(msg)
+	return
 }

@@ -12,19 +12,16 @@ import (
 )
 
 type Config struct {
-	Address       string `env:"ADDRESS"`
-	StoreInterval string `env:"STORE_INTERVAL"`
-	StoreFile     string `env:"STORE_FILE"`
-	Key           string `env:"KEY"`
-	Database      string `env:"DATABASE_DSN"`
-	Restore       bool   `env:"RESTORE"`
+	Address        string `env:"RUN_ADDRESS"`
+	Database       string `env:"DATABASE_DSN"`
+	AccrualAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 }
 
 func LoadConfigServer() (config Config, err error) {
 	log := zerolog.New(os.Stdout)
 	flag.StringVar(&config.Address, "a", ":8080", "")
 	flag.StringVar(&config.Database, "d", "postgres://postgres:postgrespw@localhost:55000", "")
-	flag.StringVar(&config.Key, "k", "", "")
+	flag.StringVar(&config.AccrualAddress, "r", "", "")
 	flag.Parse()
 	err = env.Parse(&config)
 	if err != nil {
