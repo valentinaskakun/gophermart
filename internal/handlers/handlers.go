@@ -133,13 +133,22 @@ func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request
 	}
 
 }
+func Welcome(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	w.Write([]byte(fmt.Sprintf("Hello %v ", claims)))
+	fmt.Println("welcome")
+	//fmt.Println(userID)
+}
 
 func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var msg string
 		log := zerolog.New(os.Stdout)
+		fmt.Println("im uploadorder")
+		fmt.Println(r.Context())
+		fmt.Println(jwtauth.FromContext(r.Context()))
 		_, claims, _ := jwtauth.FromContext(r.Context())
-		userID := (claims["id_user"]).(int)
+		userID := int((claims["id_user"]).(float64))
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Warn().Msg(err.Error())
@@ -193,7 +202,7 @@ func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http
 		var msg string
 		log := zerolog.New(os.Stdout)
 		_, claims, _ := jwtauth.FromContext(r.Context())
-		userID := (claims["id_user"]).(int)
+		userID := int((claims["id_user"]).(float64))
 		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserId(configRun, &userID)
 		if err != nil {
 			msg = "something went wrong while returning orders"
@@ -223,7 +232,7 @@ func GetBalance(configRun *config.Config) func(w http.ResponseWriter, r *http.Re
 	return func(w http.ResponseWriter, r *http.Request) {
 		var msg string
 		_, claims, _ := jwtauth.FromContext(r.Context())
-		userID := (claims["id_user"]).(int)
+		userID := int((claims["id_user"]).(float64))
 		balanceInfo, err := storage.ReturnBalanceByUserId(configRun, &userID)
 		if err != nil {
 			msg = "something went wrong returning balance"
@@ -249,7 +258,7 @@ func NewWithdraw(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 		var msg string
 		log := zerolog.New(os.Stdout)
 		_, claims, _ := jwtauth.FromContext(r.Context())
-		userID := (claims["id_user"]).(int)
+		userID := int((claims["id_user"]).(float64))
 		orderToWithdrawReq := storage.OrderToWithdrawStruct{}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -288,7 +297,7 @@ func GetWithdrawalsList(configRun *config.Config) func(w http.ResponseWriter, r 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, claims, _ := jwtauth.FromContext(r.Context())
-		userID := (claims["id_user"]).(int)
+		userID := int((claims["id_user"]).(float64))
 		var msg string
 		log := zerolog.New(os.Stdout)
 		isWithdraws, arrWithdraws, err := storage.ReturnWithdrawsInfoByUserId(configRun, &userID)

@@ -18,11 +18,14 @@ import (
 	"github.com/valentinaskakun/gophermart/internal/storage"
 )
 
+var tokenAuth *jwtauth.JWTAuth
+
 func handleSignal(signal os.Signal) {
 	log.Println("* Got:", signal)
 	os.Exit(-1)
 }
 func main() {
+	fmt.Println("luhn", orders.CheckOrderId(635471048))
 	//обработка сигналов
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
@@ -36,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tokenAuth := jwtauth.New("HS256", configRun.KeyToken, nil)
+	tokenAuth = jwtauth.New("HS256", []byte(configRun.KeyToken), nil)
 	err = storage.InitTables(&configRun)
 	if err != nil {
 		log.Fatal(err)
@@ -54,6 +57,7 @@ func main() {
 	r.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", handlers.Register(&configRun))
 		r.Post("/login", handlers.Login(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth)).Get("/welcome", handlers.Welcome)
 		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Post("/orders", handlers.UploadOrder(&configRun))
 		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/orders", handlers.GetOrdersList(&configRun))
 		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/balance", handlers.GetBalance(&configRun))

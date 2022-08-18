@@ -19,22 +19,47 @@ var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, acc
 					where user_id = (SELECT user_id from orders where id_order = $1);`
 var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1`
 
-func CheckOrderId(orderToCheck int) (result bool) {
-	orderToCheckString := strconv.Itoa(orderToCheck)
-	sum := 0
-	for i := len(orderToCheckString) - 1; i >= 0; i-- {
-		digit, _ := strconv.Atoi(string(orderToCheckString[i]))
-		if i%2 == 0 {
-			digit *= 2
-			if digit > 9 {
-				digit -= 9
+// Valid check number is valid or not based on Luhn algorithm
+func CheckOrderId(number int) bool {
+	return (number%10+checksum(number/10))%10 == 0
+}
+
+func checksum(number int) int {
+	var luhn int
+
+	for i := 0; number > 0; i++ {
+		cur := number % 10
+
+		if i%2 == 0 { // even
+			cur = cur * 2
+			if cur > 9 {
+				cur = cur%10 + cur/10
 			}
 		}
-		sum += digit
+
+		luhn += cur
+		number = number / 10
 	}
-	result = sum%10 == 0
-	return result
+	return luhn % 10
 }
+
+//
+//func CheckOrderId(orderToCheck int) (result bool) {
+//	orderToCheckString := strconv.Itoa(orderToCheck)
+//	sum := 0
+//	for i := len(orderToCheckString) - 1; i >= 0; i-- {
+//		digit, _ := strconv.Atoi(string(orderToCheckString[i]))
+//		if i%2 == 0 {
+//			digit *= 2
+//			if digit > 9 {
+//				digit -= 9
+//			}
+//		}
+//		sum += digit
+//	}
+//	result = sum%10 == 0
+//	return result
+//}
 func AccrualUpdate(configRun *config.Config) (err error) {
 	isOrders, arrOrders, err := storage.ReturnOrdersToProcess(configRun)
 	if isOrders == false {
