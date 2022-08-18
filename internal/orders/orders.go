@@ -16,7 +16,7 @@ import (
 )
 
 var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, accrual = accrual + $2 
-					where user_id = (SELECT user_id from orders where id_order = $1);`
+					where id_user = (SELECT id_user from orders where id_order = $1);`
 var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1`
 
 // Valid check number is valid or not based on Luhn algorithm

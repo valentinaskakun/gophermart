@@ -296,6 +296,7 @@ func NewWithdraw(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+		return
 	}
 }
 
