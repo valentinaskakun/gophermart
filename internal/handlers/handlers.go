@@ -206,15 +206,16 @@ func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		fmt.Println("im orderlistget")
 		var msg string
-		log := zerolog.New(os.Stdout)
 		_, claims, _ := jwtauth.FromContext(r.Context())
 		userID := int((claims["id_user"]).(float64))
+		fmt.Println("im orderlistget userid", userID)
 		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserId(configRun, &userID)
+		fmt.Println("is orders", isOrders, "arr orders", arrOrders)
 		if err != nil {
 			msg = "something went wrong while returning orders"
-			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
+			fmt.Println(msg, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -231,6 +232,7 @@ func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+		fmt.Println("im orders in JSON", ordersJSON)
 		w.Write(ordersJSON)
 		return
 	}
