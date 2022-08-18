@@ -88,9 +88,10 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 		} else if reqStatus == http.StatusOK {
 			var orderToAccrual storage.UsingAccrualStruct
 			if err = json.Unmarshal(resp.Body(), &orderToAccrual); err != nil {
-				fmt.Println("error while unmarshalling " + orderNum)
+				fmt.Println("error while unmarshalling Accrual " + orderNum)
 				return
 			}
+			orderToAccrualInt, err := strconv.Atoi(orderToAccrual.Order)
 			db, errSql := sql.Open("pgx", configRun.Database)
 			if errSql != nil {
 				return errSql
@@ -104,7 +105,7 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 				return errSql
 			}
 			defer txn.Rollback()
-			_, err = txn.ExecContext(ctx, QueryUpdateOrdersAccrual, orderToAccrual.Order, orderToAccrual.Status, orderToAccrual.Accrual)
+			_, err = txn.ExecContext(ctx, QueryUpdateOrdersAccrual, orderToAccrualInt, orderToAccrual.Status, orderToAccrual.Accrual)
 			if err != nil {
 				fmt.Println("failed to Update orders accrual")
 				return

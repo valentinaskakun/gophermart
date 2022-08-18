@@ -26,6 +26,7 @@ type UsingUserStruct struct {
 	jwt.StandardClaims
 }
 type UsingUserBalanceStruct struct {
+	IdUser    int     `json:"id_user" ,db:"id_user"`
 	Current   float64 `json:"current" ,db:"current"`
 	Accrual   float64 `db:"accrual"`
 	Withdrawn float64 `json:"withdrawn" ,db:"withdrawn"`
@@ -42,7 +43,7 @@ type UsingOrderStruct struct {
 	UploadedAt time.Time `json:"uploaded_at,omitempty" ,db:"uploaded_at"`
 }
 type UsingAccrualStruct struct {
-	Order   int     `json:"order" ,db:"id_order"`
+	Order   string  `json:"order" ,db:"id_order"`
 	Status  string  `json:"status,omitempty" ,db:"state"`
 	Accrual float64 `json:"accrual,omitempty" ,db:"accrual"`
 }
@@ -86,7 +87,7 @@ var PostgresDBRun = PostgresDB{
 	queryInitBalance: `CREATE TABLE IF NOT EXISTS balance (
 				  id_user           INT UNIQUE PRIMARY KEY,
 				  	  accruals	double precision,
-				  	  withdraws	double precision,
+				  	  withdrawn	double precision,
 				  	  current	double precision);`,
 	querySelectMaxIdUsers:   `SELECT MAX(id_user) FROM users;`,
 	querySelectCountUsers:   `SELECT count(id_user) FROM users;`,
@@ -114,7 +115,7 @@ var PostgresDBRun = PostgresDB{
 	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1;`,
 	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
 	querySelectOrderByUserId:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
-	querySelectWithdrawsByUserId: `SELECT id_order, id_user, withdraw, processed_at FROM orders WHERE id_user = $1;`,
+	querySelectWithdrawsByUserId: `SELECT id_order, id_user, withdraw, processed_at FROM withdraws WHERE id_user = $1;`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
 					)
@@ -123,7 +124,7 @@ var PostgresDBRun = PostgresDB{
 					id_order, id_user, state, accrual, processed_at
 					)
 					VALUES($1, $2, $3, $4, $5);`,
-	querySelectBalance: `SELECT current, accrual, withdrawn FROM balance WHERE id_user = $1;`,
+	querySelectBalance: `SELECT current, accruals, withdrawn FROM balance WHERE id_user = $1;`,
 	queryUpdateIncreaseBalance: `UPDATE balance set current = current + $2, accrual = accrual + $2 
 					where id_user = $1;`,
 	queryUpdateDecreaseBalance: `UPDATE balance set current = current - $2, withdrawn = withdrawn + $2 
@@ -290,7 +291,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 		return
 	}
 	defer txn.Rollback()
-	err = txn.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, userId).Scan(&userBalanceInfo)
+	err = txn.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, userId).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
 	if err != nil {
 		fmt.Println("failed to query balance")
 		return
@@ -362,7 +363,7 @@ func ReturnBalanceByUserId(config *config.Config, IdUser *int) (userBalanceInfo 
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, IdUser).Scan(&userBalanceInfo)
+	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, IdUser).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
 	if err != nil {
 		return userBalanceInfo, err
 	}
@@ -465,7 +466,6 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 		isOrders = true
 	}
 	defer rows.Close()
-	fmt.Println(rows)
 	for rows.Next() {
 		var orderNum int
 		err = rows.Scan(&orderNum)
