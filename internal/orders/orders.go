@@ -16,7 +16,7 @@ import (
 )
 
 var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, accruals = accruals + $2 
-					where id_user = (SELECT id_user from orders where id_order = $1);`
+					where id_user in (SELECT id_user from orders where id_order = $1);`
 var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1;`
 
 // Valid check number is valid or not based on Luhn algorithm
@@ -43,23 +43,6 @@ func checksum(number int) int {
 	return luhn % 10
 }
 
-//
-//func CheckOrderId(orderToCheck int) (result bool) {
-//	orderToCheckString := strconv.Itoa(orderToCheck)
-//	sum := 0
-//	for i := len(orderToCheckString) - 1; i >= 0; i-- {
-//		digit, _ := strconv.Atoi(string(orderToCheckString[i]))
-//		if i%2 == 0 {
-//			digit *= 2
-//			if digit > 9 {
-//				digit -= 9
-//			}
-//		}
-//		sum += digit
-//	}
-//	result = sum%10 == 0
-//	return result
-//}
 func AccrualUpdate(configRun *config.Config) (err error) {
 	isOrders, arrOrders, err := storage.ReturnOrdersToProcess(configRun)
 	if isOrders == false {

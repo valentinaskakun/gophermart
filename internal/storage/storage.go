@@ -45,7 +45,7 @@ type UsingOrderStruct struct {
 }
 type UsingAccrualStruct struct {
 	Order   string  `json:"order" ,db:"id_order"`
-	Status  string  `json:"status,omitempty" ,db:"state"`
+	Status  string  `json:"status" ,db:"state"`
 	Accrual float64 `json:"accrual,omitempty" ,db:"accrual"`
 }
 type UsingWithdrawStruct struct {
@@ -105,7 +105,7 @@ var PostgresDBRun = PostgresDB{
 	queryInitOrders: `CREATE TABLE IF NOT EXISTS orders (
 				  id_order           bigint UNIQUE PRIMARY KEY NOT NULL,
 				  id_user           INT NOT NULL,
-				  state 	  TEXT NOT NULL,
+				  state 	  TEXT,
 				  accrual	double precision ,
 					uploaded_at TIMESTAMP );`,
 	queryInitWithdraws: `CREATE TABLE IF NOT EXISTS withdraws (
@@ -323,9 +323,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 }
 
 func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool, arrOrders []UsingOrderStruct, err error) {
-	var msg string
 	var orderInfo UsingOrderStruct
-	fmt.Println("ReturnOrdersInfoByUserId get")
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return
@@ -342,25 +340,19 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 		fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
 		return
 	}
-	fmt.Println("querySelectOrderByUserId.Scan.orderInfo", orderInfo)
-	arrOrders = append(arrOrders, orderInfo)
-	fmt.Println("ReturnOrdersInfoByUserId isoreders true")
 	for rows.Next() {
-		fmt.Println("ReturnOrdersInfoByUserId Rows.Next before scan")
 		err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
 			return
 		}
-		fmt.Println("querySelectOrderByUserId.Scan.orderInfo", orderInfo)
 		arrOrders = append(arrOrders, orderInfo)
 	}
-	fmt.Println(rows)
 	if err != nil {
 		return
 	}
 	isOrders = true
-	fmt.Println(msg)
+	fmt.Println("querySelectOrderByUserId", rows)
 	return
 }
 
