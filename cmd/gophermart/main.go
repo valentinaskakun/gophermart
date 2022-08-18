@@ -50,7 +50,6 @@ func main() {
 	//	}
 	//}()
 	r := chi.NewRouter()
-
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(tokenAuth))
 		r.Use(jwtauth.Authenticator)
@@ -62,8 +61,8 @@ func main() {
 		r.Get("/api/user/withdrawals", handlers.GetWithdrawalsList(&configRun))
 	})
 	r.Group(func(r chi.Router) {
-		r.Post("/register", handlers.Register(&configRun))
-		r.Post("/login", handlers.Login(&configRun))
+		r.Post("/api/user/register", handlers.Register(&configRun))
+		r.Post("/api/user/login", handlers.Login(&configRun))
 	})
 	log.Fatal(http.ListenAndServe(configRun.Address, r))
 }

@@ -259,6 +259,7 @@ func GetBalance(configRun *config.Config) func(w http.ResponseWriter, r *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(balanceJSON)
+		return
 	}
 }
 
