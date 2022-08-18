@@ -474,12 +474,6 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 	if err != nil {
 		return
 	}
-	if !rows.Next() {
-		isOrders = false
-		return
-	} else {
-		isOrders = true
-	}
 	defer rows.Close()
 	for rows.Next() {
 		var orderNum int
@@ -488,9 +482,11 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 			return
 		}
 		arrOrders = append(arrOrders, orderNum)
+		fmt.Println("arrOrdersToAcc", arrOrders)
 	}
 	if err != nil {
 		return
 	}
+	isOrders = true
 	return
 }
