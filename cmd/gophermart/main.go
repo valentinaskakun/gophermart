@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -27,14 +25,14 @@ func handleSignal(signal os.Signal) {
 func main() {
 	fmt.Println("luhn", orders.CheckOrderId(635471048))
 	//обработка сигналов
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
-	go func() {
-		for {
-			sig := <-sigs
-			handleSignal(sig)
-		}
-	}()
+	//sigs := make(chan os.Signal, 1)
+	//signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+	//go func() {
+	//	for {
+	//		sig := <-sigs
+	//		handleSignal(sig)
+	//	}
+	//}()
 	configRun, err := config.LoadConfigServer()
 	if err != nil {
 		log.Fatal(err)
