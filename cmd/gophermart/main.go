@@ -23,7 +23,6 @@ func handleSignal(signal os.Signal) {
 	os.Exit(-1)
 }
 func main() {
-	fmt.Println("luhn", orders.CheckOrderId(635471048))
 	//обработка сигналов
 	//sigs := make(chan os.Signal, 1)
 	//signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)

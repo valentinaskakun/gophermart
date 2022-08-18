@@ -28,10 +28,12 @@ func Register(configRun *config.Config) func(w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		if err := json.Unmarshal(body, &registerUser); err != nil {
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		userInfo, err := storage.ReturnIdByLogin(configRun, &registerUser.Login)
 		if err != nil {
