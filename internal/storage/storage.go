@@ -115,7 +115,7 @@ var PostgresDBRun = PostgresDB{
 	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1;`,
 	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
 	querySelectOrderByUserId:     `SELECT id_order, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
-	querySelectWithdrawsByUserId: `SELECT id_order, withdraw, processed_at FROM withdraws WHERE id_user = $1;`,
+	querySelectWithdrawsByUserId: `SELECT id_order, withdraw, processed_at FROM withdraws WHERE id_user = $1 ORDER BY processed_at DESC;`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
 					)
@@ -331,7 +331,10 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserId, userId)
-	if rows == nil {
+	if err != nil {
+		return
+	}
+	if !rows.Next() {
 		isOrders = false
 		return
 	} else {
@@ -459,6 +462,9 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrdersToProcess)
+	if err != nil {
+		return
+	}
 	if !rows.Next() {
 		isOrders = false
 		return
