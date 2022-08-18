@@ -232,6 +232,7 @@ func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(ordersJSON)
+		return
 	}
 }
 

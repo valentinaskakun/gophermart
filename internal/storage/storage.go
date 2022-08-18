@@ -38,7 +38,7 @@ type OrderToWithdrawStruct struct {
 type UsingOrderStruct struct {
 	IdOrder    int       `json:"id_order" ,db:"id_order"`
 	IdUser     int       `json:"id_user,omitempty" ,db:"id_user"`
-	State      string    `json:"state,omitempty" ,db:"state"`
+	State      string    `json:"status,omitempty" ,db:"state"`
 	Accrual    float64   `json:"accrual,omitempty" ,db:"accrual"`
 	UploadedAt time.Time `json:"uploaded_at,omitempty" ,db:"uploaded_at"`
 }
