@@ -123,7 +123,7 @@ var PostgresDBRun = PostgresDB{
 	queryInsertWithdraw: `INSERT INTO withdraws(
 					id_order, id_user, withdraw, processed_at
 					)
-					VALUES($1, $2, $3, $4, $5);`,
+					VALUES($1, $2, $3, $4);`,
 	querySelectBalance: `SELECT current, accruals, withdrawn FROM balance WHERE id_user = $1;`,
 	queryUpdateIncreaseBalance: `UPDATE balance set current = current + $2, accruals = accruals + $2 
 					where id_user = $1;`,
