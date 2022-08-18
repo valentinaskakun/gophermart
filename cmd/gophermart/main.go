@@ -43,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tickerUpdateAccrual := time.NewTicker(10 * time.Second)
+	tickerUpdateAccrual := time.NewTicker(5 * time.Second)
 	go func() {
 		for range tickerUpdateAccrual.C {
 			err := orders.AccrualUpdate(&configRun)
