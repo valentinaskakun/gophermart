@@ -50,21 +50,20 @@ func main() {
 	//	}
 	//}()
 	r := chi.NewRouter()
-	r.Route("/api/user", func(r chi.Router) {
-		r.Group(func(r chi.Router) {
-			r.Use(jwtauth.Verifier(tokenAuth))
-			r.Use(jwtauth.Authenticator)
-			r.Get("/welcome", handlers.Welcome)
-			r.Post("/orders", handlers.UploadOrder(&configRun))
-			r.Get("/orders", handlers.GetOrdersList(&configRun))
-			r.Get("/balance", handlers.GetBalance(&configRun))
-			r.Post("/balance/withdraw", handlers.NewWithdraw(&configRun))
-			r.Get("/withdrawals", handlers.GetWithdrawalsList(&configRun))
-		})
-		r.Group(func(r chi.Router) {
-			r.Post("/register", handlers.Register(&configRun))
-			r.Post("/login", handlers.Login(&configRun))
-		})
+
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(jwtauth.Authenticator)
+		r.Get("/api/user/welcome", handlers.Welcome)
+		r.Post("/api/user/orders", handlers.UploadOrder(&configRun))
+		r.Get("/api/user/orders", handlers.GetOrdersList(&configRun))
+		r.Get("/api/user/balance", handlers.GetBalance(&configRun))
+		r.Post("/api/user/balance/withdraw", handlers.NewWithdraw(&configRun))
+		r.Get("/api/user/withdrawals", handlers.GetWithdrawalsList(&configRun))
+	})
+	r.Group(func(r chi.Router) {
+		r.Post("/register", handlers.Register(&configRun))
+		r.Post("/login", handlers.Login(&configRun))
 	})
 	log.Fatal(http.ListenAndServe(configRun.Address, r))
 }
