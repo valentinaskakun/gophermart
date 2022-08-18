@@ -117,7 +117,7 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 				fmt.Println("accrual value is 0")
 				return
 			}
-			_, err = txn.ExecContext(ctx, QueryUpdateIncreaseBalance, orderToAccrual.Order, orderToAccrual.Status)
+			_, err = txn.ExecContext(ctx, QueryUpdateIncreaseBalance, orderToAccrual.Order, orderToAccrual.Accrual)
 			if err != nil {
 				fmt.Println("failed to increase balance")
 				return
