@@ -36,7 +36,8 @@ type OrderToWithdrawStruct struct {
 	Sum     float64 `json:"sum" ,db:"sum"`
 }
 type UsingOrderStruct struct {
-	IdOrder    int       `json:"number" ,db:"id_order"`
+	IdOrder    int       `json:"id_order,omitempty"`
+	Number     string    `json:"number,omitempty" ,db:"id_order"`
 	IdUser     int       `json:"id_user,omitempty" ,db:"id_user"`
 	State      string    `json:"status,omitempty" ,db:"state"`
 	Accrual    float64   `json:"accrual,omitempty" ,db:"accrual"`
@@ -344,7 +345,7 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool
 	defer rows.Close()
 	var orderInfo UsingOrderStruct
 	for rows.Next() {
-		err = rows.Scan(&orderInfo.IdOrder, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
+		err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
 			return
