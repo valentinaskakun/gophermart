@@ -25,7 +25,7 @@ func LoadConfigServer() (config Config, err error) {
 	config.KeyToken = TokenSecret
 	flag.StringVar(&config.Address, "a", "localhost:8080", "")
 	flag.StringVar(&config.Database, "d", "postgres://postgres:postgrespw@localhost:55003", "")
-	flag.StringVar(&config.AccrualAddress, "r", "", "")
+	flag.StringVar(&config.AccrualAddress, "r", "localhost:8080", "")
 	flag.Parse()
 	err = env.Parse(&config)
 	if err != nil {
