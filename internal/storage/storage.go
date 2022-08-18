@@ -332,6 +332,7 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserId, userId)
 	if err != nil || rows.Err() != nil {
+		fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Get", err)
 		return
 	}
 	if !rows.Next() {
@@ -345,6 +346,7 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool
 	for rows.Next() {
 		err = rows.Scan(&orderInfo.IdOrder, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
+			fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
 			return
 		}
 		fmt.Println("querySelectOrderByUserId.Scan.orderInfo", orderInfo)
