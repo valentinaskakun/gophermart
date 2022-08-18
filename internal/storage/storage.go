@@ -324,6 +324,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 
 func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool, arrOrders []UsingOrderStruct, err error) {
 	var msg string
+	var orderInfo UsingOrderStruct
 	fmt.Println("ReturnOrdersInfoByUserId get")
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
@@ -334,22 +335,18 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserId, userId)
 	if err != nil || rows.Err() != nil {
-		fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Get", err)
 		return
 	}
 	defer rows.Close()
-	fmt.Println("ReturnOrdersInfoByUserId if rows exist")
-	fmt.Println("ReturnOrdersInfoByUserId rows result ", rows.Next())
-	if !rows.Next() {
-		isOrders = false
+	err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
+	if err != nil {
+		fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
 		return
 	}
-	isOrders = true
-	var orderInfo UsingOrderStruct
-	var test int
+	fmt.Println("querySelectOrderByUserId.Scan.orderInfo", orderInfo)
+	arrOrders = append(arrOrders, orderInfo)
+	fmt.Println("ReturnOrdersInfoByUserId isoreders true")
 	for rows.Next() {
-		fmt.Println(test)
-		test += 1
 		fmt.Println("ReturnOrdersInfoByUserId Rows.Next before scan")
 		err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
@@ -359,10 +356,11 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 		fmt.Println("querySelectOrderByUserId.Scan.orderInfo", orderInfo)
 		arrOrders = append(arrOrders, orderInfo)
 	}
-	fmt.Println(arrOrders)
+	fmt.Println(rows)
 	if err != nil {
 		return
 	}
+	isOrders = true
 	fmt.Println(msg)
 	return
 }
