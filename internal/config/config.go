@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const TokenSecret = "secret"
+const TokenSecret = "secret256"
 
 type Config struct {
 	Address        string `env:"RUN_ADDRESS"`
@@ -23,7 +23,7 @@ type Config struct {
 func LoadConfigServer() (config Config, err error) {
 	log := zerolog.New(os.Stdout)
 	config.KeyToken = TokenSecret
-	flag.StringVar(&config.Address, "a", ":8080", "")
+	flag.StringVar(&config.Address, "a", "localhost:8080", "")
 	flag.StringVar(&config.Database, "d", "postgres://postgres:postgrespw@localhost:55000", "")
 	flag.StringVar(&config.AccrualAddress, "r", "http://localhost:8080", "")
 	flag.Parse()

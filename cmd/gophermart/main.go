@@ -54,11 +54,11 @@ func main() {
 	r.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", handlers.Register(&configRun))
 		r.Post("/login", handlers.Login(&configRun))
-		r.With(jwtauth.Verifier(tokenAuth)).Post("/orders", handlers.UploadOrder(&configRun))
-		r.With(jwtauth.Verifier(tokenAuth)).Get("/orders", handlers.GetOrdersList(&configRun))
-		r.With(jwtauth.Verifier(tokenAuth)).Get("/balance", handlers.GetBalance(&configRun))
-		r.With(jwtauth.Verifier(tokenAuth)).Post("/balance/withdraw", handlers.NewWithdraw(&configRun))
-		r.With(jwtauth.Verifier(tokenAuth)).Get("/balance/withdrawals", handlers.GetWithdrawalsList(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Post("/orders", handlers.UploadOrder(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/orders", handlers.GetOrdersList(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/balance", handlers.GetBalance(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Post("/balance/withdraw", handlers.NewWithdraw(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/balance/withdrawals", handlers.GetWithdrawalsList(&configRun))
 	})
 	log.Fatal(http.ListenAndServe(configRun.Address, r))
 }
