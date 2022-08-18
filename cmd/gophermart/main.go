@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -24,14 +26,14 @@ func handleSignal(signal os.Signal) {
 }
 func main() {
 	//обработка сигналов
-	//sigs := make(chan os.Signal, 1)
-	//signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
-	//go func() {
-	//	for {
-	//		sig := <-sigs
-	//		handleSignal(sig)
-	//	}
-	//}()
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+	go func() {
+		for {
+			sig := <-sigs
+			handleSignal(sig)
+		}
+	}()
 	configRun, err := config.LoadConfigServer()
 	if err != nil {
 		log.Fatal(err)
@@ -59,7 +61,7 @@ func main() {
 		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/orders", handlers.GetOrdersList(&configRun))
 		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/balance", handlers.GetBalance(&configRun))
 		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Post("/balance/withdraw", handlers.NewWithdraw(&configRun))
-		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/balance/withdrawals", handlers.GetWithdrawalsList(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth), jwtauth.Authenticator).Get("/withdrawals", handlers.GetWithdrawalsList(&configRun))
 	})
 	log.Fatal(http.ListenAndServe(configRun.Address, r))
 }
