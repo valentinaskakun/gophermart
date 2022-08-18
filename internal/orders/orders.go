@@ -91,7 +91,10 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 				fmt.Println("error while unmarshalling Accrual " + orderNum)
 				return
 			}
-			orderToAccrualInt, err := strconv.Atoi(orderToAccrual.Order)
+			orderToAccrualInt, errConv := strconv.Atoi(orderToAccrual.Order)
+			if errConv != nil {
+				return errConv
+			}
 			db, errSql := sql.Open("pgx", configRun.Database)
 			if errSql != nil {
 				return errSql
