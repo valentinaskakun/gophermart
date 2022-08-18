@@ -120,12 +120,12 @@ var PostgresDBRun = PostgresDB{
 					id_order, id_user, state, accrual, uploaded_at
 					)
 					VALUES($1, $2, $3, $4, $5);`,
-	queryInsertWithdraw: `INSERT INTO orders(
-					id_order, id_user, state, accrual, processed_at
+	queryInsertWithdraw: `INSERT INTO withdraws(
+					id_order, id_user, state, withdraw, processed_at
 					)
 					VALUES($1, $2, $3, $4, $5);`,
 	querySelectBalance: `SELECT current, accruals, withdrawn FROM balance WHERE id_user = $1;`,
-	queryUpdateIncreaseBalance: `UPDATE balance set current = current + $2, accrual = accrual + $2 
+	queryUpdateIncreaseBalance: `UPDATE balance set current = current + $2, accruals = accruals + $2 
 					where id_user = $1;`,
 	queryUpdateDecreaseBalance: `UPDATE balance set current = current - $2, withdrawn = withdrawn + $2 
 					where id_user = $1;`,
