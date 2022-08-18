@@ -1,13 +1,23 @@
 package orders
 
 import (
+	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
+	"time"
 
-	"gophermart/internal/config"
+	"github.com/valentinaskakun/gophermart/internal/config"
+	"github.com/valentinaskakun/gophermart/internal/storage"
+
+	"github.com/go-resty/resty/v2"
 )
+
+var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, accrual = accrual + $2 
+					where user_id = (SELECT user_id from orders where id_order = $1);`
+var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1`
 
 func CheckOrderId(orderToCheck int) (result bool) {
 	orderToCheckString := strconv.Itoa(orderToCheck)
@@ -26,17 +36,69 @@ func CheckOrderId(orderToCheck int) (result bool) {
 	return result
 }
 func AccrualUpdate(configRun *config.Config) (err error) {
-	req, err := http.NewRequest("GET", configRun.AccrualAddress, nil)
-	if err != nil {
-		log.Println(err)
+	isOrders, arrOrders, err := storage.ReturnOrdersToProcess(configRun)
+	if isOrders == false {
+		fmt.Println("nothing to accrual")
+		return
 	}
-	fmt.Println(req)
-	req.Header.Set("Content-Type", "Content-Type: text/plain")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Println(err)
-	} else if res.StatusCode != 200 {
-		fmt.Println(err)
+	req := resty.New().
+		SetBaseURL(configRun.Address).
+		R().
+		SetHeader("Content-Type", "application/json")
+	for _, orderNum := range arrOrders {
+		resp, errResp := req.Get("/api/orders/" + string(orderNum))
+		if errResp != nil {
+			fmt.Println("something went wrong while GET accrual for " + string(orderNum))
+			return errResp
+		}
+		reqStatus := resp.StatusCode()
+		if reqStatus == http.StatusInternalServerError {
+			fmt.Println("StatusCode StatusInternalServerError 500 for " + string(orderNum))
+			return
+		} else if reqStatus == http.StatusTooManyRequests {
+			fmt.Println("StatusCode StatusTooManyRequests 429 for " + string(orderNum))
+			time.Sleep(60 * time.Second)
+			return
+		} else if reqStatus == http.StatusOK {
+			var orderToAccrual storage.UsingAccrualStruct
+			if err = json.Unmarshal(resp.Body(), &orderToAccrual); err != nil {
+				fmt.Println("error while unmarshalling " + string(orderNum))
+				return
+			}
+			db, errSql := sql.Open("pgx", configRun.Database)
+			if errSql != nil {
+				return errSql
+			}
+			defer db.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+			txn, errSql := db.Begin()
+			if errSql != nil {
+				fmt.Println("could not start a new transaction")
+				return errSql
+			}
+			defer txn.Rollback()
+			_, err = txn.ExecContext(ctx, QueryUpdateOrdersAccrual, orderToAccrual.Order, orderToAccrual.Status, orderToAccrual.Accrual)
+			if err != nil {
+				fmt.Println("failed to Update orders accrual")
+				return
+			}
+			if orderToAccrual.Accrual == 0 {
+				fmt.Println("accrual value is 0")
+				return
+			}
+			_, err = txn.ExecContext(ctx, QueryUpdateIncreaseBalance, orderToAccrual.Order, orderToAccrual.Status)
+			if err != nil {
+				fmt.Println("failed to increase balance")
+				return
+			}
+			if err = txn.Commit(); err != nil {
+				fmt.Println("failed to commit transaction")
+				return
+			}
+			return
+		}
+		return
 	}
 	return
 }

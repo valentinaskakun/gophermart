@@ -7,13 +7,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/jwtauth/v5"
 
-	"gophermart/internal/config"
-	"gophermart/internal/handlers"
-	"gophermart/internal/orders"
-	"gophermart/internal/storage"
+	"github.com/valentinaskakun/gophermart/internal/config"
+	"github.com/valentinaskakun/gophermart/internal/handlers"
+	"github.com/valentinaskakun/gophermart/internal/orders"
+	"github.com/valentinaskakun/gophermart/internal/storage"
 )
 
 func handleSignal(signal os.Signal) {
@@ -34,14 +36,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	tokenAuth := jwtauth.New("HS256", configRun.KeyToken, nil)
 	err = storage.InitTables(&configRun)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//res := orders.CheckOrderId(9278923470)
-	userId := 3
+	tickerUpdateAccrual := time.NewTicker(10 * time.Second)
 	go func() {
-		for {
+		for range tickerUpdateAccrual.C {
 			err := orders.AccrualUpdate(&configRun)
 			if err != nil {
 				fmt.Println(err)
@@ -51,12 +53,12 @@ func main() {
 	r := chi.NewRouter()
 	r.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", handlers.Register(&configRun))
-		//r.Post("/login", handlers.Login(&configRun))
-		r.Post("/orders", handlers.UploadOrder(&configRun))
-		r.Get("/orders", handlers.GetOrdersList(&configRun, &userId))
-		r.Get("/balance", handlers.GetBalance(&configRun, &userId))
-		r.Post("/balance/withdraw", handlers.WithdrawBalance(&configRun, &userId))
-		r.Get("/balance/withdrawals", handlers.GetWithdrawalsList(&configRun, &userId))
+		r.Post("/login", handlers.Login(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth)).Post("/orders", handlers.UploadOrder(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth)).Get("/orders", handlers.GetOrdersList(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth)).Get("/balance", handlers.GetBalance(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth)).Post("/balance/withdraw", handlers.NewWithdraw(&configRun))
+		r.With(jwtauth.Verifier(tokenAuth)).Get("/balance/withdrawals", handlers.GetWithdrawalsList(&configRun))
 	})
 	log.Fatal(http.ListenAndServe(configRun.Address, r))
 }
