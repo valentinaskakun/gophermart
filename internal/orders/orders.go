@@ -15,9 +15,9 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, accrual = accrual + $2 
+var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, accruals = accruals + $2 
 					where id_user = (SELECT id_user from orders where id_order = $1);`
-var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1`
+var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1;`
 
 // Valid check number is valid or not based on Luhn algorithm
 func CheckOrderId(number int) bool {
