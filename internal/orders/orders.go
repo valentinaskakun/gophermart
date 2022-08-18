@@ -42,27 +42,28 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 		return
 	}
 	req := resty.New().
-		SetBaseURL(configRun.Address).
+		SetBaseURL(configRun.AccrualAddress).
 		R().
 		SetHeader("Content-Type", "application/json")
-	for _, orderNum := range arrOrders {
-		resp, errResp := req.Get("/api/orders/" + string(orderNum))
+	for _, order := range arrOrders {
+		orderNum := strconv.Itoa(order)
+		resp, errResp := req.Get("/api/orders/" + orderNum)
 		if errResp != nil {
-			fmt.Println("something went wrong while GET accrual for " + string(orderNum))
+			fmt.Println("something went wrong while GET accrual for " + orderNum)
 			return errResp
 		}
 		reqStatus := resp.StatusCode()
 		if reqStatus == http.StatusInternalServerError {
-			fmt.Println("StatusCode StatusInternalServerError 500 for " + string(orderNum))
+			fmt.Println("StatusCode StatusInternalServerError 500 for " + orderNum)
 			return
 		} else if reqStatus == http.StatusTooManyRequests {
-			fmt.Println("StatusCode StatusTooManyRequests 429 for " + string(orderNum))
+			fmt.Println("StatusCode StatusTooManyRequests 429 for " + orderNum)
 			time.Sleep(60 * time.Second)
 			return
 		} else if reqStatus == http.StatusOK {
 			var orderToAccrual storage.UsingAccrualStruct
 			if err = json.Unmarshal(resp.Body(), &orderToAccrual); err != nil {
-				fmt.Println("error while unmarshalling " + string(orderNum))
+				fmt.Println("error while unmarshalling " + orderNum)
 				return
 			}
 			db, errSql := sql.Open("pgx", configRun.Database)

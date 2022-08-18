@@ -129,7 +129,7 @@ var PostgresDBRun = PostgresDB{
 	queryUpdateDecreaseBalance: `UPDATE balance set current = current - $2, withdrawn = withdrawn + $2 
 					where id_user = $1;`,
 	queryCheckPassword:         `SELECT password FROM users WHERE login = $1;`,
-	querySelectOrdersToProcess: `SELECT id_order FROM orders WHERE state in ("NEW", "REGISTERED", "PROCESSING");`,
+	querySelectOrdersToProcess: `SELECT id_order FROM orders WHERE state in ('NEW', 'REGISTERED', 'PROCESSING');`,
 	queryUpdateOrdersAccrual:   `UPDATE orders SET state = $2 WHERE id_order = $1`,
 }
 
