@@ -172,7 +172,7 @@ func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if orderInfo.State != "" {
+		if orderInfo.IdOrder != 0 && orderInfo.State != "" {
 			if orderInfo.IdUser == userID {
 				fmt.Println("номер заказа загружен этим пользователем")
 				w.WriteHeader(http.StatusOK)
