@@ -1,17 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth/v5"
 
 	"github.com/valentinaskakun/gophermart/internal/config"
 	"github.com/valentinaskakun/gophermart/internal/handlers"
+	"github.com/valentinaskakun/gophermart/internal/orders"
 	"github.com/valentinaskakun/gophermart/internal/storage"
 )
 
@@ -40,15 +43,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//tickerUpdateAccrual := time.NewTicker(2 * time.Second)
-	//go func() {
-	//	for range tickerUpdateAccrual.C {
-	//		err := orders.AccrualUpdate(&configRun)
-	//		if err != nil {
-	//			fmt.Println(err)
-	//		}
-	//	}
-	//}()
+	tickerUpdateAccrual := time.NewTicker(2 * time.Second)
+	go func() {
+		for range tickerUpdateAccrual.C {
+			err := orders.AccrualUpdate(&configRun)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+	}()
 	r := chi.NewRouter()
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(tokenAuth))
