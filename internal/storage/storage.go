@@ -121,7 +121,7 @@ var PostgresDBRun = PostgresDB{
 					)
 					VALUES($1, $2, $3, $4, $5);`,
 	queryInsertWithdraw: `INSERT INTO withdraws(
-					id_order, id_user, state, withdraw, processed_at
+					id_order, id_user, withdraw, processed_at
 					)
 					VALUES($1, $2, $3, $4, $5);`,
 	querySelectBalance: `SELECT current, accruals, withdrawn FROM balance WHERE id_user = $1;`,
