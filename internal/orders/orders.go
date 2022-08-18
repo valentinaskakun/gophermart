@@ -67,7 +67,7 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 		return
 	}
 	req := resty.New().
-		SetBaseURL(configRun.AccrualAddress).
+		SetBaseURL("http://"+configRun.AccrualAddress).
 		R().
 		SetHeader("Content-Type", "application/json")
 	for _, order := range arrOrders {
