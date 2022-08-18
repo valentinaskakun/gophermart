@@ -331,7 +331,7 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserId, userId)
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return
 	}
 	if !rows.Next() {
@@ -431,6 +431,9 @@ func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (isWithdraw
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectWithdrawsByUserId, userId)
+	if err != nil || rows.Err() != nil {
+		return
+	}
 	if !rows.Next() {
 		isWithdraws = false
 		return

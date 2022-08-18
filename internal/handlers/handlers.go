@@ -144,6 +144,7 @@ func Welcome(w http.ResponseWriter, r *http.Request) {
 
 func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		var msg string
 		log := zerolog.New(os.Stdout)
 		fmt.Println("im uploadorder")
