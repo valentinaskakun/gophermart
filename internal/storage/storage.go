@@ -338,16 +338,17 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 		return
 	}
 	fmt.Println("ReturnOrdersInfoByUserId if rows exist")
-	fmt.Println("ReturnOrdersInfoByUserId rows result ", !rows.Next())
+	fmt.Println("ReturnOrdersInfoByUserId rows result ", rows.Next())
 	if !rows.Next() {
 		isOrders = false
 		return
-	} else {
-		isOrders = true
 	}
-	defer rows.Close()
+	isOrders = true
 	var orderInfo UsingOrderStruct
+	var test int
 	for rows.Next() {
+		fmt.Println(test)
+		test += 1
 		fmt.Println("ReturnOrdersInfoByUserId Rows.Next before scan")
 		err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
