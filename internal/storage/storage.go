@@ -98,7 +98,7 @@ var PostgresDBRun = PostgresDB{
 					)
 					VALUES($1, $2, $3);`,
 	queryInsertUserBalance: `INSERT INTO balance(
-					id_user, current, accruals, withdraws
+					id_user, current, accruals, withdrawn
 					)
 					VALUES($1, 0, 0, 0);`,
 	queryInitOrders: `CREATE TABLE IF NOT EXISTS orders (
