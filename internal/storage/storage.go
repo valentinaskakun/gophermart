@@ -111,10 +111,10 @@ var PostgresDBRun = PostgresDB{
 				  id_user           INT NOT NULL,
 					withdraw double precision,
 					processed_at TIMESTAMP );`,
-	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1`,
+	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1;`,
 	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
-	querySelectOrderByUserId:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_user = $1`,
-	querySelectWithdrawsByUserId: `SELECT id_order, id_user, withdraw, processed_at FROM orders WHERE id_user = $1`,
+	querySelectOrderByUserId:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
+	querySelectWithdrawsByUserId: `SELECT id_order, id_user, withdraw, processed_at FROM orders WHERE id_user = $1;`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
 					)
@@ -130,7 +130,7 @@ var PostgresDBRun = PostgresDB{
 					where id_user = $1;`,
 	queryCheckPassword:         `SELECT password FROM users WHERE login = $1;`,
 	querySelectOrdersToProcess: `SELECT id_order FROM orders WHERE state in ('NEW', 'REGISTERED', 'PROCESSING');`,
-	queryUpdateOrdersAccrual:   `UPDATE orders SET state = $2 WHERE id_order = $1`,
+	queryUpdateOrdersAccrual:   `UPDATE orders SET state = $2 WHERE id_order = $1;`,
 }
 
 func InitTables(config *config.Config) (err error) {
@@ -380,17 +380,18 @@ func ReturnOrderInfoById(config *config.Config, orderId *int) (orderInfo UsingOr
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectCountOrdersById).Scan(&count)
+	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectCountOrdersById, orderId).Scan(&count)
 	if err != nil {
 		return orderInfo, err
 	}
 	if count != 0 {
-		msg = "order exists"
-		err = db.QueryRowContext(ctx, PostgresDBRun.querySelectOrderInfoById, orderId).Scan(&orderInfo)
+		fmt.Println("order exists")
+		err = db.QueryRowContext(ctx, PostgresDBRun.querySelectOrderInfoById, orderId).Scan(&orderInfo.IdOrder, &orderInfo.IdUser, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			return orderInfo, err
 		}
 		return orderInfo, err
+
 	}
 	fmt.Println(msg)
 	return orderInfo, err

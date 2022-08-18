@@ -21,7 +21,7 @@ import (
 func Register(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var msg string
-		expirationTime := time.Now().Add(5 * time.Minute)
+		expirationTime := time.Now().Add(360 * time.Minute)
 		log := zerolog.New(os.Stdout)
 		registerUser := storage.CredUserStruct{}
 		body, err := ioutil.ReadAll(r.Body)
@@ -147,38 +147,42 @@ func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 		var msg string
 		log := zerolog.New(os.Stdout)
 		fmt.Println("im uploadorder")
-		fmt.Println(r.Context())
-		fmt.Println(jwtauth.FromContext(r.Context()))
 		_, claims, _ := jwtauth.FromContext(r.Context())
 		userID := int((claims["id_user"]).(float64))
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		orderId, err := strconv.Atoi(string(body))
 		if err != nil {
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
 		}
 		if !orders.CheckOrderId(orderId) {
 			log.Warn().Msg("CRC failed")
 			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
 		}
 		orderInfo, err := storage.ReturnOrderInfoById(configRun, &orderId)
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		if orderInfo.State != "" {
 			if orderInfo.IdUser == userID {
 				fmt.Println("номер заказа загружен этим пользователем")
 				w.WriteHeader(http.StatusOK)
+				return
 			} else {
 				fmt.Println("номер заказа загружен другим пользователем")
 				w.WriteHeader(http.StatusConflict)
+				return
 			}
-			return
+
 		}
 
 		orderInfo.IdUser = userID
