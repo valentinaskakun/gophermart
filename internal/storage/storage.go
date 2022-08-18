@@ -338,7 +338,6 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 		return
 	}
 	defer rows.Close()
-	err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 	if err != nil {
 		fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
 		return
