@@ -322,8 +322,9 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 	return
 }
 
-func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool, arrOrders []UsingOrderStruct, err error) {
+func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool, arrOrders []UsingOrderStruct, err error) {
 	var msg string
+	fmt.Println("ReturnOrdersInfoByUserId get")
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return

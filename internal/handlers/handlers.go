@@ -211,7 +211,7 @@ func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http
 		_, claims, _ := jwtauth.FromContext(r.Context())
 		userID := int((claims["id_user"]).(float64))
 		fmt.Println("im orderlistget userid", userID)
-		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserId(configRun, &userID)
+		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserId(configRun, userID)
 		fmt.Println("is orders", isOrders, "arr orders", arrOrders)
 		if err != nil {
 			msg = "something went wrong while returning orders"
