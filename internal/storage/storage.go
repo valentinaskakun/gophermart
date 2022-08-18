@@ -28,7 +28,7 @@ type UsingUserStruct struct {
 type UsingUserBalanceStruct struct {
 	IdUser    int     `json:"id_user" ,db:"id_user"`
 	Current   float64 `json:"current" ,db:"current"`
-	Accrual   float64 `db:"accrual"`
+	Accrual   float64 `db:"accruals"`
 	Withdrawn float64 `json:"withdrawn" ,db:"withdrawn"`
 }
 type OrderToWithdrawStruct struct {
@@ -114,7 +114,7 @@ var PostgresDBRun = PostgresDB{
 					processed_at TIMESTAMP );`,
 	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1;`,
 	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
-	querySelectOrderByUserId:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
+	querySelectOrderByUserId:     `SELECT id_order, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
 	querySelectWithdrawsByUserId: `SELECT id_order, id_user, withdraw, processed_at FROM withdraws WHERE id_user = $1;`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
@@ -341,7 +341,7 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId *int) (isOrders bool
 	fmt.Println(rows)
 	for rows.Next() {
 		var orderInfo UsingOrderStruct
-		err = rows.Scan(&orderInfo.IdOrder, &orderInfo.IdUser, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
+		err = rows.Scan(&orderInfo.IdOrder, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			return
 		}
@@ -474,7 +474,6 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 		}
 		arrOrders = append(arrOrders, orderNum)
 	}
-	fmt.Println(arrOrders)
 	if err != nil {
 		return
 	}

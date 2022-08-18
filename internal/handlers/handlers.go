@@ -291,7 +291,6 @@ func NewWithdraw(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 		if isBalance == false {
 			msg = "sum > balance"
 			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusPaymentRequired)
 			return
 		}
