@@ -113,10 +113,10 @@ var PostgresDBRun = PostgresDB{
 				  id_user           INT NOT NULL,
 					withdraw double precision,
 					processed_at TIMESTAMP );`,
-	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1;`,
+	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1 ORDER BY uploaded_at ASC;`,
 	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
 	querySelectOrderByUserId:     `SELECT id_order, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
-	querySelectWithdrawsByUserId: `SELECT id_order, withdraw, processed_at FROM withdraws WHERE id_user = $1 ORDER BY processed_at DESC;`,
+	querySelectWithdrawsByUserId: `SELECT id_order, withdraw, processed_at FROM withdraws WHERE id_user = $1 ORDER BY processed_at ASC;`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
 					)
