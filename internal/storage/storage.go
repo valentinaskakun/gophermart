@@ -32,8 +32,8 @@ type UsingUserBalanceStruct struct {
 	Withdrawn float64 `json:"withdrawn" ,db:"withdrawn"`
 }
 type OrderToWithdrawStruct struct {
-	IdOrder string `json:"order,omitempty" ,db:"id_order"`
-	Sum     string `json:"sum,omitempty" ,db:"sum"`
+	IdOrder string  `json:"order,omitempty" ,db:"id_order"`
+	Sum     float64 `json:"sum,omitempty" ,db:"sum"`
 }
 type UsingOrderStruct struct {
 	IdOrder    int       `json:"id_order,omitempty"`
@@ -279,10 +279,6 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *int) (isBalance bool, result bool, err error) {
 	var msg string
 	var userBalanceInfo UsingUserBalanceStruct
-	sumParsed, err := strconv.ParseFloat(order.Sum, 64)
-	if err != nil {
-		return
-	}
 	orderParsed, err := strconv.Atoi(order.IdOrder)
 	if err != nil {
 		return
@@ -305,7 +301,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 		fmt.Println("failed to query balance")
 		return
 	}
-	if userBalanceInfo.Current < sumParsed {
+	if userBalanceInfo.Current < order.Sum {
 		isBalance = false
 		result = true
 		return
