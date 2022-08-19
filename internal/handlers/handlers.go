@@ -82,7 +82,7 @@ func PostOrder(config config.ServerConfig, st storage.Repo) func(w http.Response
 
 		order.OrderID = string(body)
 		ID := claims["ID"]
-
+		fmt.Println("claims =", claims)
 		order.UserID = int(ID.(float64))
 		fmt.Println("order.UserID", order.UserID)
 		checkOrder, err := st.GetOrderByOrderID(order.OrderID)

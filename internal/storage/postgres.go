@@ -2,10 +2,12 @@ package storage
 
 import (
 	"context"
-	"github.com/jackc/pgx/v4"
-	"github.com/pkg/errors"
-	"github.com/zamibaru89/gophermart/internal/config"
+	"fmt"
 	"log"
+
+	"github.com/pkg/errors"
+
+	"github.com/zamibaru89/gophermart/internal/config"
 )
 
 type PostgresStorage struct {
@@ -137,6 +139,7 @@ func (p *PostgresStorage) GetOrderByOrderID(id string) (Order, error) {
 		return order, err
 	}
 	defer result.Close()
+	fmt.Println("result rows =", result)
 	for result.Next() {
 		err = result.Scan(&order.OrderID, &order.UserID, &order.State, &order.Accrual, &order.UploadedAt)
 
