@@ -63,11 +63,18 @@ func (p *PostgresStorage) RegisterUser(credentials Credentials) error {
 		)
 		VALUES($1, $2);
 	`
+	queryReturnID := `
+		SELECT id FROM users where username = $1;
+	`
 	_, err := p.Connection.Exec(context.Background(), query, credentials.Username, credentials.Password)
 	if err != nil {
 		log.Println(err)
 		return err
-
+	}
+	err = p.Connection.QueryRow(context.Background(), queryReturnID, credentials.Username).Scan(&credentials.ID)
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 	return nil
 }
