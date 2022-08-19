@@ -22,7 +22,7 @@ func NewPostgresStorage(c config.ServerConfig) (Repo, *pgx.Conn, error) {
 	}
 
 	query := `CREATE TABLE IF NOT EXISTS  users(
-    id PRIMARY KEY SERIAL,
+    id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(50)
 );
@@ -71,7 +71,7 @@ func (p *PostgresStorage) RegisterUser(credentials Credentials) error {
 		log.Println(err)
 		return err
 	}
-	err = p.Connection.QueryRow(context.Background(), queryReturnID, credentials.Username).Scan(&credentials.ID)
+	err = p.Connection.QueryRow(context.Background(), queryReturnID, credentials.Username).Scan(credentials.ID)
 	if err != nil {
 		log.Println(err)
 		return err
