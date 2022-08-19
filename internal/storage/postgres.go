@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 
 	"github.com/zamibaru89/gophermart/internal/config"
