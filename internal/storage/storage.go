@@ -134,14 +134,14 @@ func InsertUser(config *config.Config, userAuthInfo *CredUserStruct) (userID int
 	_, err = txn.Exec(PostgresDBRun.queryInsertUser, newID, userAuthInfo.Login, userAuthInfo.Password)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "InsertUser.txn.Exec(PostgresDBRun.queryInsertUser)" + string(newID) + userAuthInfo.Login,
+			"func": "InsertUser.txn.Exec(PostgresDBRun.queryInsertUser)" + userAuthInfo.Login,
 		}).Error(err)
 		return userID, errors.Wrap(err, "failed to insert multiple records at once")
 	}
 	_, err = txn.Exec(PostgresDBRun.queryInsertUserBalance, newID)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "InsertUser.txn.Exec(PostgresDBRun.queryInsertUserBalance, newID)" + string(newID),
+			"func": "InsertUser.txn.Exec(PostgresDBRun.queryInsertUserBalance, newID)",
 		}).Error(err)
 		return userID, errors.Wrap(err, "failed to insert multiple records at once")
 	}
@@ -232,7 +232,7 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 	_, err = db.ExecContext(ctx, PostgresDBRun.queryInsertOrder, order.IDOrder, order.IDUser, order.State, 0, order.UploadedAt)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "InsertOrder.PostgresDBRun.queryInsertOrder " + string(order.IDOrder) + string(order.IDUser),
+			"func": "InsertOrder.PostgresDBRun.queryInsertOrder ",
 		}).Error(err)
 		return err
 	}
@@ -270,7 +270,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userID *in
 	err = txn.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, userID).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "NewWithdraw.PostgresDBRun.querySelectBalance" + string(*userID),
+			"func": "NewWithdraw.PostgresDBRun.querySelectBalance",
 		}).Error(err)
 		return
 	}
@@ -286,14 +286,14 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userID *in
 	_, err = txn.ExecContext(ctx, PostgresDBRun.queryUpdateDecreaseBalance, userID, order.Sum)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "NewWithdraw.queryUpdateDecreaseBalance failed" + string(*userID),
+			"func": "NewWithdraw.queryUpdateDecreaseBalance failed",
 		}).Error(err)
 		return
 	}
 	_, err = txn.ExecContext(ctx, PostgresDBRun.queryInsertWithdraw, orderParsed, userID, order.Sum, time.Now())
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "NewWithdraw.queryInsertWithdraw" + string(orderParsed) + string(*userID),
+			"func": "NewWithdraw.queryInsertWithdraw",
 		}).Error(err)
 		return
 	}
@@ -322,7 +322,7 @@ func ReturnOrdersInfoByUserID(config *config.Config, userID int) (isOrders bool,
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserID, userID)
 	if err != nil || rows.Err() != nil {
 		log.WithFields(log.Fields{
-			"func": "ReturnOrdersInfoByUserID.PostgresDBRun.querySelectOrderByUserID" + string(userID),
+			"func": "ReturnOrdersInfoByUserID.PostgresDBRun.querySelectOrderByUserID",
 		}).Error(err)
 		return
 	}
@@ -355,7 +355,7 @@ func ReturnBalanceByUserID(config *config.Config, IDUser *int) (userBalanceInfo 
 	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, IDUser).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "ReturnBalanceByUserID.PostgresDBRun.querySelectBalance " + string(*IDUser),
+			"func": "ReturnBalanceByUserID.PostgresDBRun.querySelectBalance ",
 		}).Error(err)
 		return
 	}
@@ -378,7 +378,7 @@ func ReturnOrderInfoByID(config *config.Config, orderID *int) (orderInfo UsingOr
 	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectCountOrdersByID, orderID).Scan(&count)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"func": "ReturnOrderInfoByID.PostgresDBRun.querySelectCountOrdersByID " + string(*orderID),
+			"func": "ReturnOrderInfoByID.PostgresDBRun.querySelectCountOrdersByID ",
 		}).Error(err)
 	}
 	if count != 0 {
@@ -386,7 +386,7 @@ func ReturnOrderInfoByID(config *config.Config, orderID *int) (orderInfo UsingOr
 		err = db.QueryRowContext(ctx, PostgresDBRun.querySelectOrderInfoByID, orderID).Scan(&orderInfo.IDOrder, &orderInfo.IDUser, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			log.WithFields(log.Fields{
-				"func": "ReturnOrderInfoByID.PostgresDBRun.querySelectOrderInfoByID " + string(*orderID),
+				"func": "ReturnOrderInfoByID.PostgresDBRun.querySelectOrderInfoByID ",
 			}).Error(err)
 		}
 		return
@@ -409,7 +409,7 @@ func ReturnWithdrawsInfoByUserID(config *config.Config, userID *int) (isWithdraw
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectWithdrawsByUserID, userID)
 	if err != nil || rows.Err() != nil {
 		log.WithFields(log.Fields{
-			"func": "ReturnWithdrawsInfoByUserID.PostgresDBRun.querySelectWithdrawsByUserID " + string(*userID),
+			"func": "ReturnWithdrawsInfoByUserID.PostgresDBRun.querySelectWithdrawsByUserID ",
 		}).Error(err)
 		return
 	}
