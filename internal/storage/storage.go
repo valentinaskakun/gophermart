@@ -50,7 +50,7 @@ type UsingAccrualStruct struct {
 }
 type UsingWithdrawStruct struct {
 	IdOrder     string    `json:"order" ,db:"id_order"`
-	Withdraw    float64   `json:"withdraw" ,db:"withdraw"`
+	Withdraw    float64   `json:"sum" ,db:"withdraw"`
 	ProcessedAt time.Time `json:"processed_at,omitempty" ,db:"processed_at"`
 }
 type PostgresDB struct {
