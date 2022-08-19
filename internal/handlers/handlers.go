@@ -3,16 +3,18 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/go-chi/jwtauth/v5"
-	"github.com/go-chi/render"
-	"github.com/zamibaru89/gophermart/internal/config"
-	"github.com/zamibaru89/gophermart/internal/functions"
-	"github.com/zamibaru89/gophermart/internal/storage"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/go-chi/jwtauth/v5"
+	"github.com/go-chi/render"
+
+	"github.com/zamibaru89/gophermart/internal/config"
+	"github.com/zamibaru89/gophermart/internal/functions"
+	"github.com/zamibaru89/gophermart/internal/storage"
 )
 
 type Claims struct {
@@ -82,11 +84,12 @@ func PostOrder(config config.ServerConfig, st storage.Repo) func(w http.Response
 		ID := claims["ID"]
 
 		order.UserID = int(ID.(float64))
-
+		fmt.Println("order.UserID", order.UserID)
 		checkOrder, err := st.GetOrderByOrderID(order.OrderID)
 		if err != nil {
 			return
 		}
+		fmt.Println("checkOrder", checkOrder)
 		luhn, err := functions.CheckOrderID(order.OrderID)
 		if err != nil {
 			log.Println(err)
@@ -96,6 +99,8 @@ func PostOrder(config config.ServerConfig, st storage.Repo) func(w http.Response
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}
+		fmt.Println("checkOrder.UserID=", checkOrder.UserID)
+		fmt.Println(" order.UserID=", order.UserID)
 		if checkOrder.UserID != 0 {
 			if checkOrder.UserID == order.UserID {
 				log.Println("the same order for same user")
