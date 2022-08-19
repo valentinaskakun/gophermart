@@ -21,24 +21,24 @@ type CredUserStruct struct {
 	Password string `json:"password" ,db:"password"`
 }
 type UsingUserStruct struct {
-	IdUser int    `json:"id_user" ,db:"id_user"`
+	IDUser int    `json:"id_user" ,db:"id_user"`
 	Login  string `json:"login" ,db:"login"`
 	jwt.StandardClaims
 }
 type UsingUserBalanceStruct struct {
-	IdUser    int     `json:"id_user" ,db:"id_user"`
+	IDUser    int     `json:"id_user" ,db:"id_user"`
 	Current   float64 `json:"current" ,db:"current"`
 	Accrual   float64 `db:"accruals"`
 	Withdrawn float64 `json:"withdrawn" ,db:"withdrawn"`
 }
 type OrderToWithdrawStruct struct {
-	IdOrder string  `json:"order,omitempty" ,db:"id_order"`
+	IDOrder string  `json:"order,omitempty" ,db:"id_order"`
 	Sum     float64 `json:"sum,omitempty" ,db:"sum"`
 }
 type UsingOrderStruct struct {
-	IdOrder    int       `json:"id_order,omitempty"`
+	IDOrder    int       `json:"id_order,omitempty"`
 	Number     string    `json:"number,omitempty" ,db:"id_order"`
-	IdUser     int       `json:"id_user,omitempty" ,db:"id_user"`
+	IDUser     int       `json:"id_user,omitempty" ,db:"id_user"`
 	State      string    `json:"status,omitempty" ,db:"state"`
 	Accrual    float64   `json:"accrual,omitempty" ,db:"accrual"`
 	UploadedAt time.Time `json:"uploaded_at,omitempty" ,db:"uploaded_at"`
@@ -49,24 +49,24 @@ type UsingAccrualStruct struct {
 	Accrual float64 `json:"accrual,omitempty" ,db:"accrual"`
 }
 type UsingWithdrawStruct struct {
-	IdOrder     string    `json:"order" ,db:"id_order"`
+	IDOrder     string    `json:"order" ,db:"id_order"`
 	Withdraw    float64   `json:"sum" ,db:"withdraw"`
 	ProcessedAt time.Time `json:"processed_at,omitempty" ,db:"processed_at"`
 }
 type PostgresDB struct {
 	queryInitUsers               string
-	querySelectMaxIdUsers        string
+	querySelectMaxIDUsers        string
 	querySelectCountUsers        string
-	querySelectIdByLogin         string
+	querySelectIDByLogin         string
 	querySelectCountByLogin      string
 	queryInsertUser              string
 	queryInitOrders              string
 	queryInitWithdraws           string
 	queryInitBalance             string
-	querySelectCountOrdersById   string
-	querySelectOrderByUserId     string
-	querySelectWithdrawsByUserId string
-	querySelectOrderInfoById     string
+	querySelectCountOrdersByID   string
+	querySelectOrderByUserID     string
+	querySelectWithdrawsByUserID string
+	querySelectOrderInfoByID     string
 	querySelectCountByOrder      string
 	queryInsertOrder             string
 	querySelectBalance           string
@@ -90,9 +90,9 @@ var PostgresDBRun = PostgresDB{
 				  	  accruals	double precision,
 				  	  withdrawn	double precision,
 				  	  current	double precision);`,
-	querySelectMaxIdUsers:   `SELECT MAX(id_user) FROM users;`,
+	querySelectMaxIDUsers:   `SELECT MAX(id_user) FROM users;`,
 	querySelectCountUsers:   `SELECT count(id_user) FROM users;`,
-	querySelectIdByLogin:    `SELECT id_user FROM users WHERE login = $1;`,
+	querySelectIDByLogin:    `SELECT id_user FROM users WHERE login = $1;`,
 	querySelectCountByLogin: `SELECT count(id_user) FROM users WHERE login = $1;`,
 	queryInsertUser: `INSERT INTO users(
 					id_user, login, password
@@ -113,10 +113,10 @@ var PostgresDBRun = PostgresDB{
 				  id_user           INT NOT NULL,
 					withdraw double precision,
 					processed_at TIMESTAMP );`,
-	querySelectOrderInfoById:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1 ORDER BY uploaded_at ASC;`,
-	querySelectCountOrdersById:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
-	querySelectOrderByUserId:     `SELECT id_order, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
-	querySelectWithdrawsByUserId: `SELECT id_order, withdraw, processed_at FROM withdraws WHERE id_user = $1 ORDER BY processed_at ASC;`,
+	querySelectOrderInfoByID:     `SELECT id_order, id_user, state, accrual, uploaded_at FROM orders WHERE id_order = $1 ORDER BY uploaded_at ASC;`,
+	querySelectCountOrdersByID:   `SELECT COUNT(id_order) FROM orders WHERE id_order = $1;`,
+	querySelectOrderByUserID:     `SELECT id_order, state, accrual, uploaded_at FROM orders WHERE id_user = $1;`,
+	querySelectWithdrawsByUserID: `SELECT id_order, withdraw, processed_at FROM withdraws WHERE id_user = $1 ORDER BY processed_at ASC;`,
 	queryInsertOrder: `INSERT INTO orders(
 					id_order, id_user, state, accrual, uploaded_at
 					)
@@ -169,8 +169,8 @@ func InitTables(config *config.Config) (err error) {
 	return
 }
 
-func InsertUser(config *config.Config, userAuthInfo *CredUserStruct) (userId int, err error) {
-	var maxId int
+func InsertUser(config *config.Config, userAuthInfo *CredUserStruct) (userID int, err error) {
+	var maxID int
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return
@@ -178,37 +178,37 @@ func InsertUser(config *config.Config, userAuthInfo *CredUserStruct) (userId int
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectMaxIdUsers).Scan(&maxId)
+	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectMaxIDUsers).Scan(&maxID)
 	if err != nil {
 		var count int
 		err2 := db.QueryRowContext(ctx, PostgresDBRun.querySelectCountUsers).Scan(&count)
 		if err2 == nil {
 			if count == 0 {
-				maxId = 0
+				maxID = 0
 				err = nil
 			}
 		} else {
 			return
 		}
 	}
-	newID := maxId + 1
+	newID := maxID + 1
 	txn, err := db.Begin()
 	if err != nil {
-		return userId, errors.Wrap(err, "could not start a new transaction")
+		return userID, errors.Wrap(err, "could not start a new transaction")
 	}
 	defer txn.Rollback()
 	_, err = txn.Exec(PostgresDBRun.queryInsertUser, newID, userAuthInfo.Login, userAuthInfo.Password)
 	if err != nil {
-		return userId, errors.Wrap(err, "failed to insert multiple records at once")
+		return userID, errors.Wrap(err, "failed to insert multiple records at once")
 	}
 	_, err = txn.Exec(PostgresDBRun.queryInsertUserBalance, newID)
 	if err != nil {
-		return userId, errors.Wrap(err, "failed to insert multiple records at once")
+		return userID, errors.Wrap(err, "failed to insert multiple records at once")
 	}
 	if err := txn.Commit(); err != nil {
-		return userId, errors.Wrap(err, "failed to commit transaction")
+		return userID, errors.Wrap(err, "failed to commit transaction")
 	}
-	userId = newID
+	userID = newID
 	return
 
 }
@@ -237,7 +237,7 @@ func CheckUserPass(config *config.Config, userAuthInfo *CredUserStruct) (result 
 	return
 }
 
-func ReturnIdByLogin(config *config.Config, login *string) (userAuthInfo UsingUserStruct, err error) {
+func ReturnIDByLogin(config *config.Config, login *string) (userAuthInfo UsingUserStruct, err error) {
 	userAuthInfo.Login = *login
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
@@ -249,10 +249,10 @@ func ReturnIdByLogin(config *config.Config, login *string) (userAuthInfo UsingUs
 	var countByLogin int
 	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectCountByLogin, login).Scan(&countByLogin)
 	if err != nil || countByLogin == 0 {
-		userAuthInfo.IdUser = 0
+		userAuthInfo.IDUser = 0
 		return userAuthInfo, err
 	}
-	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectIdByLogin, login).Scan(&userAuthInfo.IdUser)
+	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectIDByLogin, login).Scan(&userAuthInfo.IDUser)
 	if err != nil {
 		return userAuthInfo, err
 	}
@@ -268,7 +268,7 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err = db.ExecContext(ctx, PostgresDBRun.queryInsertOrder, order.IdOrder, order.IdUser, order.State, 0, order.UploadedAt)
+	_, err = db.ExecContext(ctx, PostgresDBRun.queryInsertOrder, order.IDOrder, order.IDUser, order.State, 0, order.UploadedAt)
 	if err != nil {
 		return err
 	}
@@ -276,10 +276,10 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 	return
 }
 
-func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *int) (isBalance bool, result bool, err error) {
+func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userID *int) (isBalance bool, result bool, err error) {
 	var msg string
 	var userBalanceInfo UsingUserBalanceStruct
-	orderParsed, err := strconv.Atoi(order.IdOrder)
+	orderParsed, err := strconv.Atoi(order.IDOrder)
 	if err != nil {
 		return
 	}
@@ -296,7 +296,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 		return
 	}
 	defer txn.Rollback()
-	err = txn.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, userId).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
+	err = txn.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, userID).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
 	if err != nil {
 		fmt.Println("failed to query balance")
 		return
@@ -307,12 +307,12 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 		return
 	}
 	isBalance = true
-	_, err = txn.ExecContext(ctx, PostgresDBRun.queryUpdateDecreaseBalance, userId, order.Sum)
+	_, err = txn.ExecContext(ctx, PostgresDBRun.queryUpdateDecreaseBalance, userID, order.Sum)
 	if err != nil {
 		fmt.Println("failed to decrease balance")
 		return
 	}
-	_, err = txn.ExecContext(ctx, PostgresDBRun.queryInsertWithdraw, orderParsed, userId, order.Sum, time.Now())
+	_, err = txn.ExecContext(ctx, PostgresDBRun.queryInsertWithdraw, orderParsed, userID, order.Sum, time.Now())
 	if err != nil {
 		fmt.Println("failed to insert withdraw")
 		return
@@ -326,7 +326,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 	return
 }
 
-func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool, arrOrders []UsingOrderStruct, err error) {
+func ReturnOrdersInfoByUserID(config *config.Config, userID int) (isOrders bool, arrOrders []UsingOrderStruct, err error) {
 	var orderInfo UsingOrderStruct
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
@@ -335,19 +335,19 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserId, userId)
+	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrderByUserID, userID)
 	if err != nil || rows.Err() != nil {
 		return
 	}
 	defer rows.Close()
 	if err != nil {
-		fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
+		fmt.Println("querySelectOrderByUserID.Scan.orderInfo.Rows", err)
 		return
 	}
 	for rows.Next() {
 		err = rows.Scan(&orderInfo.Number, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
-			fmt.Println("querySelectOrderByUserId.Scan.orderInfo.Rows", err)
+			fmt.Println("querySelectOrderByUserID.Scan.orderInfo.Rows", err)
 			return
 		}
 		arrOrders = append(arrOrders, orderInfo)
@@ -356,11 +356,11 @@ func ReturnOrdersInfoByUserId(config *config.Config, userId int) (isOrders bool,
 		return
 	}
 	isOrders = true
-	fmt.Println("querySelectOrderByUserId", rows)
+	fmt.Println("querySelectOrderByUserID", rows)
 	return
 }
 
-func ReturnBalanceByUserId(config *config.Config, IdUser *int) (userBalanceInfo UsingUserBalanceStruct, err error) {
+func ReturnBalanceByUserID(config *config.Config, IDUser *int) (userBalanceInfo UsingUserBalanceStruct, err error) {
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return userBalanceInfo, err
@@ -368,17 +368,17 @@ func ReturnBalanceByUserId(config *config.Config, IdUser *int) (userBalanceInfo 
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, IdUser).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
+	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectBalance, IDUser).Scan(&userBalanceInfo.Current, &userBalanceInfo.Accrual, &userBalanceInfo.Withdrawn)
 	if err != nil {
 		return userBalanceInfo, err
 	}
 	return userBalanceInfo, err
 }
 
-func ReturnOrderInfoById(config *config.Config, orderId *int) (orderInfo UsingOrderStruct, err error) {
+func ReturnOrderInfoByID(config *config.Config, orderID *int) (orderInfo UsingOrderStruct, err error) {
 	var msg string
 	var count int
-	orderInfo.IdOrder = *orderId
+	orderInfo.IDOrder = *orderID
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return orderInfo, err
@@ -386,13 +386,13 @@ func ReturnOrderInfoById(config *config.Config, orderId *int) (orderInfo UsingOr
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectCountOrdersById, orderId).Scan(&count)
+	err = db.QueryRowContext(ctx, PostgresDBRun.querySelectCountOrdersByID, orderID).Scan(&count)
 	if err != nil {
 		return orderInfo, err
 	}
 	if count != 0 {
 		fmt.Println("order exists")
-		err = db.QueryRowContext(ctx, PostgresDBRun.querySelectOrderInfoById, orderId).Scan(&orderInfo.IdOrder, &orderInfo.IdUser, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
+		err = db.QueryRowContext(ctx, PostgresDBRun.querySelectOrderInfoByID, orderID).Scan(&orderInfo.IDOrder, &orderInfo.IDUser, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			return orderInfo, err
 		}
@@ -403,7 +403,7 @@ func ReturnOrderInfoById(config *config.Config, orderId *int) (orderInfo UsingOr
 	return orderInfo, err
 }
 
-func ChangeBalanceByUserId(config *config.Config, IdUser *int, action string, sum *float64) (err error) {
+func ChangeBalanceByUserID(config *config.Config, IDUser *int, action string, sum *float64) (err error) {
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return
@@ -412,19 +412,19 @@ func ChangeBalanceByUserId(config *config.Config, IdUser *int, action string, su
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	if action == "increase" {
-		_, err = db.ExecContext(ctx, PostgresDBRun.queryUpdateIncreaseBalance, IdUser, sum)
+		_, err = db.ExecContext(ctx, PostgresDBRun.queryUpdateIncreaseBalance, IDUser, sum)
 		if err != nil {
 			return
 		}
 	} else if action == "decrease" {
-		_, err = db.ExecContext(ctx, PostgresDBRun.queryUpdateDecreaseBalance, IdUser, sum)
+		_, err = db.ExecContext(ctx, PostgresDBRun.queryUpdateDecreaseBalance, IDUser, sum)
 		if err != nil {
 			return
 		}
 	}
 	return
 }
-func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (isWithdraws bool, arrWithdraws []UsingWithdrawStruct, err error) {
+func ReturnWithdrawsInfoByUserID(config *config.Config, userID *int) (isWithdraws bool, arrWithdraws []UsingWithdrawStruct, err error) {
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return
@@ -432,7 +432,7 @@ func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (isWithdraw
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectWithdrawsByUserId, userId)
+	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectWithdrawsByUserID, userID)
 	if err != nil || rows.Err() != nil {
 		return
 	}
@@ -440,7 +440,7 @@ func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (isWithdraw
 	fmt.Println(rows)
 	for rows.Next() {
 		var withdrawInfo UsingWithdrawStruct
-		err = rows.Scan(&withdrawInfo.IdOrder, &withdrawInfo.Withdraw, &withdrawInfo.ProcessedAt)
+		err = rows.Scan(&withdrawInfo.IDOrder, &withdrawInfo.Withdraw, &withdrawInfo.ProcessedAt)
 		if err != nil {
 			return
 		}
@@ -462,7 +462,7 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	rows, err := db.QueryContext(ctx, PostgresDBRun.querySelectOrdersToProcess)
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return
 	}
 	defer rows.Close()

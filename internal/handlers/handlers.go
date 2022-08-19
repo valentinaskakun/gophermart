@@ -35,13 +35,14 @@ func Register(configRun *config.Config) func(w http.ResponseWriter, r *http.Requ
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		userInfo, err := storage.ReturnIdByLogin(configRun, &registerUser.Login)
+		userInfo, err := storage.ReturnIDByLogin(configRun, &registerUser.Login)
 		if err != nil {
 			msg = "something went wrong"
 			fmt.Println(msg)
 			log.Warn().Msg(err.Error())
+			return
 		}
-		if userInfo.IdUser != 0 {
+		if userInfo.IDUser != 0 {
 			msg = "the login exists"
 			fmt.Println(msg)
 			w.WriteHeader(http.StatusConflict)
@@ -54,7 +55,7 @@ func Register(configRun *config.Config) func(w http.ResponseWriter, r *http.Requ
 		}
 		userAuthInfo := storage.UsingUserStruct{
 			Login:  registerUser.Login,
-			IdUser: registerUserID,
+			IDUser: registerUserID,
 			StandardClaims: jwt.StandardClaims{
 				ExpiresAt: expirationTime.Unix(),
 			},
@@ -71,8 +72,6 @@ func Register(configRun *config.Config) func(w http.ResponseWriter, r *http.Requ
 			Expires: expirationTime,
 		})
 		w.WriteHeader(http.StatusOK)
-		fmt.Sprintf(registerUser.Login, registerUser.Password)
-		return
 	}
 }
 
@@ -88,13 +87,13 @@ func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		userInfo, err := storage.ReturnIdByLogin(configRun, &userCred.Login)
+		userInfo, err := storage.ReturnIDByLogin(configRun, &userCred.Login)
 		if err != nil {
 			msg = "something went wrong"
 			fmt.Println(msg)
 			log.Warn().Msg(err.Error())
 		}
-		if userInfo.IdUser == 0 {
+		if userInfo.IDUser == 0 {
 			msg = "the login doesn't exist"
 			fmt.Println(msg)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -105,7 +104,7 @@ func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request
 			fmt.Println(err)
 			w.WriteHeader(http.StatusBadRequest)
 		}
-		if result != true {
+		if !result {
 			msg = "the pass doesn't match"
 			fmt.Println(msg)
 			w.WriteHeader(http.StatusUnauthorized)
@@ -113,7 +112,7 @@ func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request
 		}
 		userAuthInfo := storage.UsingUserStruct{
 			Login:  userCred.Login,
-			IdUser: userInfo.IdUser,
+			IDUser: userInfo.IDUser,
 			StandardClaims: jwt.StandardClaims{
 				ExpiresAt: expirationTime.Unix(),
 			},
@@ -130,8 +129,6 @@ func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request
 			Expires: expirationTime,
 		})
 		w.WriteHeader(http.StatusOK)
-		fmt.Sprintf(userCred.Login, userCred.Password)
-		return
 	}
 
 }
@@ -156,25 +153,25 @@ func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		orderId, err := strconv.Atoi(string(body))
+		orderID, err := strconv.Atoi(string(body))
 		if err != nil {
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}
-		if !orders.CheckOrderId(orderId) {
+		if !orders.CheckOrderID(orderID) {
 			log.Warn().Msg("CRC failed")
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}
-		orderInfo, err := storage.ReturnOrderInfoById(configRun, &orderId)
+		orderInfo, err := storage.ReturnOrderInfoByID(configRun, &orderID)
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if orderInfo.IdOrder != 0 && orderInfo.State != "" {
-			if orderInfo.IdUser == userID {
+		if orderInfo.IDOrder != 0 && orderInfo.State != "" {
+			if orderInfo.IDUser == userID {
 				fmt.Println("номер заказа загружен этим пользователем")
 				w.WriteHeader(http.StatusOK)
 				return
@@ -186,7 +183,7 @@ func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 
 		}
 
-		orderInfo.IdUser = userID
+		orderInfo.IDUser = userID
 		orderInfo.State = "NEW"
 		orderInfo.UploadedAt = time.Now()
 
@@ -199,7 +196,6 @@ func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
-		return
 	}
 }
 
@@ -209,14 +205,14 @@ func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http
 		var msg string
 		_, claims, _ := jwtauth.FromContext(r.Context())
 		userID := int((claims["id_user"]).(float64))
-		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserId(configRun, userID)
+		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserID(configRun, userID)
 		if err != nil {
 			msg = "something went wrong while returning orders"
 			fmt.Println(msg, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if isOrders == false {
+		if !isOrders {
 			fmt.Println("нет данных для ответа")
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -239,7 +235,7 @@ func GetBalance(configRun *config.Config) func(w http.ResponseWriter, r *http.Re
 		var msg string
 		_, claims, _ := jwtauth.FromContext(r.Context())
 		userID := int((claims["id_user"]).(float64))
-		balanceInfo, err := storage.ReturnBalanceByUserId(configRun, &userID)
+		balanceInfo, err := storage.ReturnBalanceByUserID(configRun, &userID)
 		if err != nil {
 			msg = "something went wrong returning balance"
 			fmt.Println(msg)
@@ -256,7 +252,6 @@ func GetBalance(configRun *config.Config) func(w http.ResponseWriter, r *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(balanceJSON)
-		return
 	}
 }
 
@@ -277,30 +272,29 @@ func NewWithdraw(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		}
-		orderParsed, err := strconv.Atoi(orderToWithdrawReq.IdOrder)
+		orderParsed, err := strconv.Atoi(orderToWithdrawReq.IDOrder)
 		if err != nil {
 			return
 		}
-		if !orders.CheckOrderId(orderParsed) {
+		if !orders.CheckOrderID(orderParsed) {
 			log.Warn().Msg("CRC failed")
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		}
 		isBalance, result, err := storage.NewWithdraw(configRun, &orderToWithdrawReq, &userID)
-		if err != nil || result == false {
+		if err != nil || !result {
 			msg = "something went wrong while new withdraw"
 			fmt.Println(msg)
 			log.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if isBalance == false {
+		if !isBalance {
 			msg = "sum > balance"
 			fmt.Println(msg)
 			w.WriteHeader(http.StatusPaymentRequired)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		return
 	}
 }
 
@@ -311,7 +305,7 @@ func GetWithdrawalsList(configRun *config.Config) func(w http.ResponseWriter, r 
 		userID := int((claims["id_user"]).(float64))
 		var msg string
 		log := zerolog.New(os.Stdout)
-		isWithdraws, arrWithdraws, err := storage.ReturnWithdrawsInfoByUserId(configRun, &userID)
+		isWithdraws, arrWithdraws, err := storage.ReturnWithdrawsInfoByUserID(configRun, &userID)
 		if err != nil {
 			msg = "something went wrong while returning withdraws"
 			fmt.Println(msg)
@@ -319,7 +313,7 @@ func GetWithdrawalsList(configRun *config.Config) func(w http.ResponseWriter, r 
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if isWithdraws == false {
+		if !isWithdraws {
 			fmt.Println("нет списаний")
 			w.WriteHeader(http.StatusNoContent)
 			return

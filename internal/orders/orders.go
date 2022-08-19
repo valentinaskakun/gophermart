@@ -20,7 +20,7 @@ var QueryUpdateIncreaseBalance = `UPDATE balance set current = current + $2, acc
 var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE id_order = $1;`
 
 // Valid check number is valid or not based on Luhn algorithm
-func CheckOrderId(number int) bool {
+func CheckOrderID(number int) bool {
 	return number != 0 && (number%10+checksum(number/10))%10 == 0
 }
 
@@ -45,7 +45,7 @@ func checksum(number int) int {
 
 func AccrualUpdate(configRun *config.Config) (err error) {
 	isOrders, arrOrders, err := storage.ReturnOrdersToProcess(configRun)
-	if isOrders == false {
+	if !isOrder {
 		fmt.Println("nothing to accrual")
 		return
 	}
@@ -78,17 +78,17 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 			if errConv != nil {
 				return errConv
 			}
-			db, errSql := sql.Open("pgx", configRun.Database)
-			if errSql != nil {
-				return errSql
+			db, errSQL := sql.Open("pgx", configRun.Database)
+			if errSQL != nil {
+				return errSQL
 			}
 			defer db.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
-			txn, errSql := db.Begin()
-			if errSql != nil {
+			txn, errSQL := db.Begin()
+			if errSQL != nil {
 				fmt.Println("could not start a new transaction")
-				return errSql
+				return errSQL
 			}
 			defer txn.Rollback()
 			_, err = txn.ExecContext(ctx, QueryUpdateOrdersAccrual, orderToAccrualInt, orderToAccrual.Status, orderToAccrual.Accrual)
@@ -111,7 +111,6 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 			}
 			return
 		}
-		return
 	}
 	return
 }
