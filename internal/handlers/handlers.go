@@ -275,9 +275,13 @@ func NewWithdraw(configRun *config.Config) func(w http.ResponseWriter, r *http.R
 		}
 		if err := json.Unmarshal(body, &orderToWithdrawReq); err != nil {
 			log.Warn().Msg(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusUnprocessableEntity)
 		}
-		if !orders.CheckOrderId(orderToWithdrawReq.IdOrder) {
+		orderParsed, err := strconv.Atoi(orderToWithdrawReq.IdOrder)
+		if err != nil {
+			return
+		}
+		if !orders.CheckOrderId(orderParsed) {
 			log.Warn().Msg("CRC failed")
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		}

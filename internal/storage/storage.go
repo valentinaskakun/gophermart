@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-
-	"github.com/dgrijalva/jwt-go"
 
 	"github.com/valentinaskakun/gophermart/internal/config"
 )
@@ -32,8 +32,8 @@ type UsingUserBalanceStruct struct {
 	Withdrawn float64 `json:"withdrawn" ,db:"withdrawn"`
 }
 type OrderToWithdrawStruct struct {
-	IdOrder int     `json:"id_order" ,db:"id_order"`
-	Sum     float64 `json:"sum" ,db:"sum"`
+	IdOrder string `json:"order,omitempty" ,db:"id_order"`
+	Sum     string `json:"sum,omitempty" ,db:"sum"`
 }
 type UsingOrderStruct struct {
 	IdOrder    int       `json:"id_order,omitempty"`
@@ -49,7 +49,7 @@ type UsingAccrualStruct struct {
 	Accrual float64 `json:"accrual,omitempty" ,db:"accrual"`
 }
 type UsingWithdrawStruct struct {
-	IdOrder     int       `json:"id_order" ,db:"id_order"`
+	IdOrder     int       `json:"order" ,db:"id_order"`
 	Withdraw    float64   `json:"withdraw" ,db:"withdraw"`
 	ProcessedAt time.Time `json:"processed_at,omitempty" ,db:"processed_at"`
 }
@@ -279,6 +279,14 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *int) (isBalance bool, result bool, err error) {
 	var msg string
 	var userBalanceInfo UsingUserBalanceStruct
+	sumParsed, err := strconv.ParseFloat(order.Sum, 64)
+	if err != nil {
+		return
+	}
+	orderParsed, err := strconv.Atoi(order.IdOrder)
+	if err != nil {
+		return
+	}
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		return
@@ -297,7 +305,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 		fmt.Println("failed to query balance")
 		return
 	}
-	if userBalanceInfo.Current < order.Sum {
+	if userBalanceInfo.Current < sumParsed {
 		isBalance = false
 		result = true
 		return
@@ -308,7 +316,7 @@ func NewWithdraw(config *config.Config, order *OrderToWithdrawStruct, userId *in
 		fmt.Println("failed to decrease balance")
 		return
 	}
-	_, err = txn.ExecContext(ctx, PostgresDBRun.queryInsertWithdraw, order.IdOrder, userId, order.Sum, time.Now())
+	_, err = txn.ExecContext(ctx, PostgresDBRun.queryInsertWithdraw, orderParsed, userId, order.Sum, time.Now())
 	if err != nil {
 		fmt.Println("failed to insert withdraw")
 		return

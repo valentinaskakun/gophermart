@@ -21,7 +21,7 @@ var QueryUpdateOrdersAccrual = `UPDATE orders SET state = $2, accrual = $3 WHERE
 
 // Valid check number is valid or not based on Luhn algorithm
 func CheckOrderId(number int) bool {
-	return (number%10+checksum(number/10))%10 == 0
+	return number != 0 && (number%10+checksum(number/10))%10 == 0
 }
 
 func checksum(number int) int {
