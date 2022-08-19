@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/valentinaskakun/gophermart/internal/config"
 	"github.com/valentinaskakun/gophermart/internal/storage"
@@ -26,17 +27,14 @@ func CheckOrderID(number int) bool {
 
 func checksum(number int) int {
 	var luhn int
-
 	for i := 0; number > 0; i++ {
 		cur := number % 10
-
 		if i%2 == 0 { // even
 			cur = cur * 2
 			if cur > 9 {
 				cur = cur%10 + cur/10
 			}
 		}
-
 		luhn += cur
 		number = number / 10
 	}
@@ -46,7 +44,9 @@ func checksum(number int) int {
 func AccrualUpdate(configRun *config.Config) (err error) {
 	isOrders, arrOrders, err := storage.ReturnOrdersToProcess(configRun)
 	if !isOrders {
-		fmt.Println("nothing to accrual")
+		log.WithFields(log.Fields{
+			"func": "AccrualUpdate nothing to accrual",
+		}).Info()
 		return
 	}
 	req := resty.New().
@@ -57,29 +57,43 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 		orderNum := strconv.Itoa(order)
 		resp, errResp := req.Get("/api/orders/" + orderNum)
 		if errResp != nil {
-			fmt.Println("something went wrong while GET accrual for " + orderNum)
+			log.WithFields(log.Fields{
+				"func": "AccrualUpdate something went wrong while GET accrual for " + orderNum,
+			}).Warn(errResp)
 			return errResp
 		}
 		reqStatus := resp.StatusCode()
 		if reqStatus == http.StatusInternalServerError {
-			fmt.Println("StatusCode StatusInternalServerError 500 for " + orderNum)
+			log.WithFields(log.Fields{
+				"func": "AccrualUpdate StatusCode StatusInternalServerError 500 for " + orderNum,
+			}).Warn()
 			return
 		} else if reqStatus == http.StatusTooManyRequests {
-			fmt.Println("StatusCode StatusTooManyRequests 429 for " + orderNum)
+			log.WithFields(log.Fields{
+				"func": "AccrualUpdate StatusCode StatusTooManyRequests 429 for " + orderNum,
+			}).Warn()
 			time.Sleep(60 * time.Second)
 			return
 		} else if reqStatus == http.StatusOK {
 			var orderToAccrual storage.UsingAccrualStruct
 			if err = json.Unmarshal(resp.Body(), &orderToAccrual); err != nil {
-				fmt.Println("error while unmarshalling Accrual " + orderNum)
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate error while unmarshalling Accrual  " + orderNum,
+				}).Error(err)
 				return
 			}
 			orderToAccrualInt, errConv := strconv.Atoi(orderToAccrual.Order)
 			if errConv != nil {
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate error while strconv.Atoi(orderToAccrual.Order)",
+				}).Error(errConv)
 				return errConv
 			}
 			db, errSQL := sql.Open("pgx", configRun.Database)
 			if errSQL != nil {
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate.db.sql.Open()",
+				}).Error(errSQL)
 				return errSQL
 			}
 			defer db.Close()
@@ -87,26 +101,36 @@ func AccrualUpdate(configRun *config.Config) (err error) {
 			defer cancel()
 			txn, errSQL := db.Begin()
 			if errSQL != nil {
-				fmt.Println("could not start a new transaction")
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate.db.Begin()",
+				}).Error(errSQL)
 				return errSQL
 			}
 			defer txn.Rollback()
 			_, err = txn.ExecContext(ctx, QueryUpdateOrdersAccrual, orderToAccrualInt, orderToAccrual.Status, orderToAccrual.Accrual)
 			if err != nil {
-				fmt.Println("failed to Update orders accrual")
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate.QueryUpdateOrdersAccrual",
+				}).Error(err)
 				return
 			}
 			if orderToAccrual.Accrual == 0 {
-				fmt.Println("accrual value is 0")
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate accrual value is 0",
+				}).Warn(err)
 				return
 			}
 			_, err = txn.ExecContext(ctx, QueryUpdateIncreaseBalance, orderToAccrual.Order, orderToAccrual.Accrual)
 			if err != nil {
-				fmt.Println("failed to increase balance")
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate QueryUpdateIncreaseBalance",
+				}).Error(err)
 				return
 			}
 			if err = txn.Commit(); err != nil {
-				fmt.Println("failed to commit transaction")
+				log.WithFields(log.Fields{
+					"func": "AccrualUpdate.txn.Commit()",
+				}).Error(err)
 				return
 			}
 			return

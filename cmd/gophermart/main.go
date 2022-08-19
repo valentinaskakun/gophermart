@@ -1,31 +1,33 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/jwtauth/v5"
-
 	"github.com/valentinaskakun/gophermart/internal/config"
 	"github.com/valentinaskakun/gophermart/internal/handlers"
 	"github.com/valentinaskakun/gophermart/internal/orders"
 	"github.com/valentinaskakun/gophermart/internal/storage"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/jwtauth/v5"
+	log "github.com/sirupsen/logrus"
 )
 
-var tokenAuth *jwtauth.JWTAuth
-
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.WarnLevel)
+}
 func handleSignal(signal os.Signal) {
 	log.Println("* Got:", signal)
 	os.Exit(-1)
 }
 func main() {
-	//обработка сигналов
+	var tokenAuth *jwtauth.JWTAuth
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	go func() {
@@ -36,19 +38,26 @@ func main() {
 	}()
 	configRun, err := config.LoadConfigServer()
 	if err != nil {
+		log.WithFields(log.Fields{
+			"func": "config.LoadConfigServer()",
+		}).Error(err)
 		log.Fatal(err)
 	}
 	tokenAuth = jwtauth.New("HS256", []byte(configRun.KeyToken), nil)
 	err = storage.InitTables(&configRun)
 	if err != nil {
-		log.Fatal(err)
+		log.WithFields(log.Fields{
+			"func": "storage.InitTables(&configRun)",
+		}).Error(err)
 	}
 	tickerUpdateAccrual := time.NewTicker(2 * time.Second)
 	go func() {
 		for range tickerUpdateAccrual.C {
 			err := orders.AccrualUpdate(&configRun)
 			if err != nil {
-				fmt.Println(err)
+				log.WithFields(log.Fields{
+					"func": "orders.AccrualUpdate(&configRun)",
+				}).Error(err)
 			}
 		}
 	}()
