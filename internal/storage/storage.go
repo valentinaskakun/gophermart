@@ -49,7 +49,7 @@ type UsingAccrualStruct struct {
 	Accrual float64 `json:"accrual,omitempty" ,db:"accrual"`
 }
 type UsingWithdrawStruct struct {
-	IdOrder     int       `json:"order" ,db:"id_order"`
+	IdOrder     string    `json:"order" ,db:"id_order"`
 	Withdraw    float64   `json:"withdraw" ,db:"withdraw"`
 	ProcessedAt time.Time `json:"processed_at,omitempty" ,db:"processed_at"`
 }
