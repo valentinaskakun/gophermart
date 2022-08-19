@@ -436,12 +436,6 @@ func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (isWithdraw
 	if err != nil || rows.Err() != nil {
 		return
 	}
-	if !rows.Next() {
-		isWithdraws = false
-		return
-	} else {
-		isWithdraws = true
-	}
 	defer rows.Close()
 	fmt.Println(rows)
 	for rows.Next() {
@@ -453,6 +447,7 @@ func ReturnWithdrawsInfoByUserId(config *config.Config, userId *int) (isWithdraw
 		arrWithdraws = append(arrWithdraws, withdrawInfo)
 	}
 	fmt.Println(arrWithdraws)
+	isWithdraws = true
 	if err != nil {
 		return
 	}
