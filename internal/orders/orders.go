@@ -45,7 +45,7 @@ func checksum(number int) int {
 
 func AccrualUpdate(configRun *config.Config) (err error) {
 	isOrders, arrOrders, err := storage.ReturnOrdersToProcess(configRun)
-	if !isOrder {
+	if !isOrders {
 		fmt.Println("nothing to accrual")
 		return
 	}
