@@ -22,7 +22,7 @@ func NewPostgresStorage(c config.ServerConfig) (Repo, *pgx.Conn, error) {
 	}
 
 	query := `CREATE TABLE IF NOT EXISTS  users(
-    id serial PRIMARY KEY,
+    id PRIMARY KEY SERIAL,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(50)
 );
