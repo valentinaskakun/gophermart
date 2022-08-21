@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -218,7 +217,6 @@ func ReturnIDByLogin(config *config.Config, login *string) (userAuthInfo UsingUs
 }
 
 func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
-	var msg string
 	db, err := sql.Open("pgx", config.Database)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -236,7 +234,6 @@ func InsertOrder(config *config.Config, order *UsingOrderStruct) (err error) {
 		}).Error(err)
 		return err
 	}
-	fmt.Println(msg)
 	return
 }
 
@@ -382,7 +379,6 @@ func ReturnOrderInfoByID(config *config.Config, orderID *int) (orderInfo UsingOr
 		}).Error(err)
 	}
 	if count != 0 {
-		fmt.Println("order exists")
 		err = db.QueryRowContext(ctx, PostgresDBRun.querySelectOrderInfoByID, orderID).Scan(&orderInfo.IDOrder, &orderInfo.IDUser, &orderInfo.State, &orderInfo.Accrual, &orderInfo.UploadedAt)
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -414,7 +410,6 @@ func ReturnWithdrawsInfoByUserID(config *config.Config, userID *int) (isWithdraw
 		return
 	}
 	defer rows.Close()
-	fmt.Println(rows)
 	for rows.Next() {
 		var withdrawInfo UsingWithdrawStruct
 		err = rows.Scan(&withdrawInfo.IDOrder, &withdrawInfo.Withdraw, &withdrawInfo.ProcessedAt)
@@ -426,7 +421,6 @@ func ReturnWithdrawsInfoByUserID(config *config.Config, userID *int) (isWithdraw
 		}
 		arrWithdraws = append(arrWithdraws, withdrawInfo)
 	}
-	fmt.Println(arrWithdraws)
 	isWithdraws = true
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -464,7 +458,6 @@ func ReturnOrdersToProcess(config *config.Config) (isOrders bool, arrOrders []in
 			return
 		}
 		arrOrders = append(arrOrders, orderNum)
-		fmt.Println("arrOrdersToAcc", arrOrders)
 	}
 	if err != nil {
 		log.WithFields(log.Fields{

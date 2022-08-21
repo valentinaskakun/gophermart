@@ -17,16 +17,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func init() {
-	log.SetFormatter(&log.JSONFormatter{})
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.WarnLevel)
-}
 func handleSignal(signal os.Signal) {
 	log.Println("* Got:", signal)
 	os.Exit(-1)
 }
+
 func main() {
+	config.InitLog()
 	var tokenAuth *jwtauth.JWTAuth
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)

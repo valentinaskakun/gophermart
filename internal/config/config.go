@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"os"
 
 	"github.com/caarlos0/env/v6"
 	log "github.com/sirupsen/logrus"
@@ -16,11 +17,17 @@ type Config struct {
 	KeyToken       string
 }
 
+func InitLog() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.WarnLevel)
+}
+
 func LoadConfigServer() (config Config, err error) {
 	config.KeyToken = TokenSecret
-	flag.StringVar(&config.Address, "a", "localhost:8090", "")
-	flag.StringVar(&config.Database, "d", "postgres://postgres:postgrespw@localhost:55003", "")
-	flag.StringVar(&config.AccrualAddress, "r", "localhost:8080", "")
+	flag.StringVar(&config.Address, "a", "localhost:8080", "")
+	flag.StringVar(&config.Database, "d", "postgres://postgres:postgrespw@localhost:55000", "")
+	flag.StringVar(&config.AccrualAddress, "r", "localhost:8090", "")
 	flag.Parse()
 	err = env.Parse(&config)
 	if err != nil {

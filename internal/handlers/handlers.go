@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -111,7 +110,9 @@ func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request
 		}
 		result, err := storage.CheckUserPass(configRun, &userCred)
 		if err != nil {
-			fmt.Println(err)
+			log.WithFields(log.Fields{
+				"func": "Login.CheckUserPass can't check the pass",
+			}).Info()
 			w.WriteHeader(http.StatusBadRequest)
 		}
 		if !result {
@@ -340,7 +341,6 @@ func GetWithdrawalsList(configRun *config.Config) func(w http.ResponseWriter, r 
 			return
 		}
 		if !isWithdraws {
-			fmt.Println("нет списаний")
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
