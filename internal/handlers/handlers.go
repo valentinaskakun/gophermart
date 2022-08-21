@@ -2,121 +2,272 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
-	"github.com/rs/zerolog"
+	log "github.com/sirupsen/logrus"
 
-	"gophermart/internal/config"
-	"gophermart/internal/storage"
+	"github.com/valentinaskakun/gophermart/internal/config"
+	"github.com/valentinaskakun/gophermart/internal/orders"
+	"github.com/valentinaskakun/gophermart/internal/storage"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/go-chi/jwtauth/v5"
 )
 
 func Register(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var msg string
-		log := zerolog.New(os.Stdout)
-		registerUser := storage.RegisterUserStruct{}
+		expirationTime := time.Now().Add(360 * time.Minute)
+		registerUser := storage.CredUserStruct{}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Warn().Msg(err.Error())
+			log.WithFields(log.Fields{
+				"func": "Register ioutil.ReadAll(r.Body)",
+			}).Error(err)
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		if err := json.Unmarshal(body, &registerUser); err != nil {
-			log.Warn().Msg(err.Error())
+			log.WithFields(log.Fields{
+				"func": "Register json.Unmarshal(body, &registerUser)",
+			}).Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		userInfo, err := storage.ReturnIDByLogin(configRun, &registerUser.Login)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Register.ReturnIDByLogin)",
+			}).Error(err)
+			return
+		}
+		if userInfo.IDUser != 0 {
+			log.WithFields(log.Fields{
+				"func": "Register The login exists",
+			}).Info()
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		registerUserID, err := storage.InsertUser(configRun, &registerUser)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Register.storage.InsertUser",
+			}).Error(err)
+			return
+		}
+		userAuthInfo := storage.UsingUserStruct{
+			Login:  registerUser.Login,
+			IDUser: registerUserID,
+			StandardClaims: jwt.StandardClaims{
+				ExpiresAt: expirationTime.Unix(),
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, userAuthInfo)
+		tokenString, err := token.SignedString([]byte(configRun.KeyToken))
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Register.tokenPreparing",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:    "jwt",
+			Value:   tokenString,
+			Expires: expirationTime,
+		})
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func Login(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		expirationTime := time.Now().Add(5 * time.Minute)
+		var userCred storage.CredUserStruct
+		err := json.NewDecoder(r.Body).Decode(&userCred)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Login.json.NewDecoder",
+			}).Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		userInfo, err := storage.ReturnIDByLogin(configRun, &userCred.Login)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Login.ReturnIDByLogin",
+			}).Error(err)
+		}
+		if userInfo.IDUser == 0 {
+			log.WithFields(log.Fields{
+				"func": "Login.the login doesn't exist",
+			}).Info()
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		result, err := storage.CheckUserPass(configRun, &userCred)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Login.CheckUserPass can't check the pass",
+			}).Info()
 			w.WriteHeader(http.StatusBadRequest)
 		}
-		userInfo, err := storage.ReturnIdByLogin(configRun, &registerUser.Login)
-		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
-		}
-		if userInfo.IdUser != 0 {
-			msg = "the login exists"
-			fmt.Println(msg)
+		if !result {
+			log.WithFields(log.Fields{
+				"func": "Login.the pass doesn't match",
+			}).Info()
+			w.WriteHeader(http.StatusUnauthorized)
 			return
-		} else {
-			err = storage.InsertUser(configRun, &registerUser)
-			if err != nil {
-				log.Warn().Msg(err.Error())
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write(body)
-			fmt.Sprintf(registerUser.Login, registerUser.Password)
 		}
+		userAuthInfo := storage.UsingUserStruct{
+			Login:  userCred.Login,
+			IDUser: userInfo.IDUser,
+			StandardClaims: jwt.StandardClaims{
+				ExpiresAt: expirationTime.Unix(),
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, userAuthInfo)
+		tokenString, err := token.SignedString([]byte(configRun.KeyToken))
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "Login.tokenPreparing",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:    "jwt",
+			Value:   tokenString,
+			Expires: expirationTime,
+		})
+		w.WriteHeader(http.StatusOK)
 	}
+
 }
 
 func UploadOrder(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var msg string
-		log := zerolog.New(os.Stdout)
-		order := storage.UsingOrderStruct{}
+		w.Header().Set("Content-Type", "application/json")
+		_, claims, _ := jwtauth.FromContext(r.Context())
+		userID := int((claims["id_user"]).(float64))
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Warn().Msg(err.Error())
+			log.WithFields(log.Fields{
+				"func": "UploadOrder.ioutil.ReadAll(r.Body)",
+			}).Error(err)
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		orderId, err := strconv.Atoi(string(body))
+		orderID, err := strconv.Atoi(string(body))
 		if err != nil {
-			log.Warn().Msg(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
+			log.WithFields(log.Fields{
+				"func": "UploadOrder.strconv.Atoi(string(body)",
+			}).Error(err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
 		}
-		order.IdOrder = orderId
-		order.State = "NEW"
-		order.UploadedAt = time.Now()
-		//добавить UserId
-		err = storage.InsertOrder(configRun, &order)
+		if !orders.CheckOrderID(orderID) {
+			log.WithFields(log.Fields{
+				"func": "UploadOrder CRC failed",
+			}).Info()
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+		orderInfo, err := storage.ReturnOrderInfoByID(configRun, &orderID)
 		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
+			log.WithFields(log.Fields{
+				"func": "UploadOrder.ReturnOrderInfoByID",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Write(body)
+		if orderInfo.IDOrder != 0 && orderInfo.State != "" {
+			if orderInfo.IDUser == userID {
+				log.WithFields(log.Fields{
+					"func": "UploadOrder.номер заказа загружен этим пользователем",
+				}).Info()
+				w.WriteHeader(http.StatusOK)
+				return
+			} else {
+				log.WithFields(log.Fields{
+					"func": "UploadOrder.номер заказа загружен не этим пользователем",
+				}).Info()
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+
+		}
+
+		orderInfo.IDUser = userID
+		orderInfo.State = "NEW"
+		orderInfo.UploadedAt = time.Now()
+
+		err = storage.InsertOrder(configRun, &orderInfo)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "UploadOrder.InsertOrder",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
-func GetOrdersList(configRun *config.Config, userId *int) func(w http.ResponseWriter, r *http.Request) {
+func GetOrdersList(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var msg string
-		log := zerolog.New(os.Stdout)
-		arrOrders, err := storage.ReturnOrdersInfoByUserId(configRun, userId)
+		w.Header().Set("Content-Type", "application/json")
+		_, claims, _ := jwtauth.FromContext(r.Context())
+		userID := int((claims["id_user"]).(float64))
+		isOrders, arrOrders, err := storage.ReturnOrdersInfoByUserID(configRun, userID)
 		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
+			log.WithFields(log.Fields{
+				"func": "GetOrdersList.ReturnOrdersInfoByUserID",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if !isOrders {
+			log.WithFields(log.Fields{
+				"func": "UploadOrder.нет данных для ответа",
+			}).Info()
+			w.WriteHeader(http.StatusNoContent)
+			return
 		}
 		ordersJSON, err := json.Marshal(arrOrders)
 		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
+			log.WithFields(log.Fields{
+				"func": "GetOrdersList.Marshal(arrOrders)",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(ordersJSON)
 	}
 }
 
-func GetBalance(configRun *config.Config, userId *int) func(w http.ResponseWriter, r *http.Request) {
+func GetBalance(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var msg string
-		log := zerolog.New(os.Stdout)
-		balanceInfo, err := storage.ReturnBalanceByUserId(configRun, userId)
+		_, claims, _ := jwtauth.FromContext(r.Context())
+		userID := int((claims["id_user"]).(float64))
+		balanceInfo, err := storage.ReturnBalanceByUserID(configRun, &userID)
 		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
+			log.WithFields(log.Fields{
+				"func": "GetBalance.ReturnBalanceByUserID",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		balanceJSON, err := json.Marshal(balanceInfo)
 		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
+			log.WithFields(log.Fields{
+				"func": "GetBalance.json.Marshal(balanceInfo)",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -125,252 +276,83 @@ func GetBalance(configRun *config.Config, userId *int) func(w http.ResponseWrite
 	}
 }
 
-func WithdrawBalance(configRun *config.Config, userId *int) func(w http.ResponseWriter, r *http.Request) {
+func NewWithdraw(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var msg string
-		log := zerolog.New(os.Stdout)
-		orderToWithdraw := storage.OrderToWithdrawStruct{}
+		_, claims, _ := jwtauth.FromContext(r.Context())
+		userID := int((claims["id_user"]).(float64))
+		orderToWithdrawReq := storage.OrderToWithdrawStruct{}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Warn().Msg(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-		}
-		if err := json.Unmarshal(body, &orderToWithdraw); err != nil {
-			log.Warn().Msg(err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-		}
-		userInfo, err := storage.ReturnIdByLogin(configRun, userId)
-		if err != nil {
-			msg = "something went wrong"
-			fmt.Println(msg)
-			log.Warn().Msg(err.Error())
-		}
-		if userInfo.IdUser != 0 {
-			msg = "the login exists"
-			fmt.Println(msg)
+			log.WithFields(log.Fields{
+				"func": "NewWithdraw.ioutil.ReadAll(r.Body)",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
-		} else {
-			err = storage.InsertUser(configRun, &registerUser)
-			if err != nil {
-				log.Warn().Msg(err.Error())
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write(body)
-			fmt.Sprintf(registerUser.Login, registerUser.Password)
 		}
+		if err := json.Unmarshal(body, &orderToWithdrawReq); err != nil {
+			log.WithFields(log.Fields{
+				"func": "NewWithdraw.json.Unmarshal(body, &orderToWithdrawReq)",
+			}).Error(err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
+		orderParsed, err := strconv.Atoi(orderToWithdrawReq.IDOrder)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "NewWithdraw.strconv.Atoi(orderToWithdrawReq.IDOrder)",
+			}).Error(err)
+			return
+		}
+		if !orders.CheckOrderID(orderParsed) {
+			log.WithFields(log.Fields{
+				"func": "NewWithdraw.CRC failed",
+			}).Error(err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
+		isBalance, result, err := storage.NewWithdraw(configRun, &orderToWithdrawReq, &userID)
+		if err != nil || !result {
+			log.WithFields(log.Fields{
+				"func": "NewWithdraw.storage.NewWithdraw",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if !isBalance {
+			log.WithFields(log.Fields{
+				"func": "NewWithdraw.balance",
+			}).Info()
+			w.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
-//func ListMetric(metricsRun *storage.Metrics, saveConfig *storage.SaveConfig) func(w http.ResponseWriter, r *http.Request) {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		metricsRun.GetMetrics(saveConfig)
-//		metricType := chi.URLParam(r, "metricType")
-//		metricName := chi.URLParam(r, "metricName")
-//		if metricType == "gauge" {
-//			if val, ok := metricsRun.GaugeMetric[metricName]; ok {
-//				fmt.Fprintln(w, val)
-//			} else {
-//				w.WriteHeader(http.StatusNotFound)
-//			}
-//		} else if metricType == "counter" {
-//			if val, ok := metricsRun.CounterMetric[metricName]; ok {
-//				fmt.Fprintln(w, val)
-//			} else {
-//				w.WriteHeader(http.StatusNotFound)
-//			}
-//		} else {
-//			w.WriteHeader(http.StatusNotImplemented)
-//		}
-//	}
-//}
-//
-//func ListMetricJSON(metricsRun *storage.Metrics, saveConfig *storage.SaveConfig, useHash string) func(w http.ResponseWriter, r *http.Request) {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log := zerolog.New(os.Stdout)
-//		metricsRun.GetMetrics(saveConfig)
-//		w.Header().Set("Content-Type", "application/json")
-//		metricReq, metricRes := storage.MetricsJSON{}, storage.MetricsJSON{}
-//		body, err := ioutil.ReadAll(r.Body)
-//		if err != nil {
-//			log.Warn().Msg(err.Error())
-//			w.WriteHeader(http.StatusBadRequest)
-//		}
-//		if err := json.Unmarshal(body, &metricReq); err != nil {
-//			log.Warn().Msg(err.Error())
-//			w.WriteHeader(http.StatusBadRequest)
-//		}
-//		if metricReq.MType == "gauge" {
-//			if _, ok := metricsRun.GaugeMetric[metricReq.ID]; ok {
-//				metricRes.ID, metricRes.MType, metricRes.Delta = metricReq.ID, metricReq.MType, metricReq.Delta
-//				valueRes := metricsRun.GaugeMetric[metricReq.ID]
-//				metricRes.Value = &valueRes
-//				if len(useHash) > 0 {
-//					metricRes.Hash = config.Hash(fmt.Sprintf("%s:gauge:%f", metricRes.ID, *metricRes.Value), useHash)
-//				}
-//			} else {
-//				w.WriteHeader(http.StatusNotFound)
-//				return
-//			}
-//		} else if metricReq.MType == "counter" {
-//			if _, ok := metricsRun.CounterMetric[metricReq.ID]; ok {
-//				metricRes.ID, metricRes.MType, metricRes.Value = metricReq.ID, metricReq.MType, metricReq.Value
-//				valueRes := metricsRun.CounterMetric[metricReq.ID]
-//				metricRes.Delta = &valueRes
-//				if len(useHash) > 0 {
-//					metricRes.Hash = config.Hash(fmt.Sprintf("%s:counter:%d", metricRes.ID, *metricRes.Delta), useHash)
-//				}
-//			} else {
-//				w.WriteHeader(http.StatusNotFound)
-//				return
-//			}
-//		} else {
-//			w.WriteHeader(http.StatusNotFound)
-//			return
-//		}
-//		if resBody, err := json.Marshal(metricRes); err != nil {
-//			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-//			return
-//		} else {
-//			w.WriteHeader(http.StatusOK)
-//			w.Write(resBody)
-//		}
-//	}
-//}
-//
-//func UpdateMetric(metricsRun *storage.Metrics, saveConfig *storage.SaveConfig) func(w http.ResponseWriter, r *http.Request) {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log := zerolog.New(os.Stdout)
-//		metricsRun.GetMetrics(saveConfig)
-//		metricType := chi.URLParam(r, "metricType")
-//		metricName := chi.URLParam(r, "metricName")
-//		metricValue := chi.URLParam(r, "metricValue")
-//		if metricType == "gauge" {
-//			valParsed, err := strconv.ParseFloat(metricValue, 64)
-//			if err != nil {
-//				log.Warn().Msg(err.Error())
-//				w.WriteHeader(http.StatusBadRequest)
-//			} else {
-//				metricsRun.MuGauge.Lock()
-//				metricsRun.GaugeMetric[metricName] = valParsed
-//				metricsRun.MuGauge.Unlock()
-//			}
-//		} else if metricType == "counter" {
-//			valParsed, err := strconv.ParseInt(metricValue, 10, 64)
-//			if err != nil {
-//				log.Warn().Msg(err.Error())
-//				w.WriteHeader(http.StatusBadRequest)
-//			} else {
-//				metricsRun.MuCounter.Lock()
-//				metricsRun.CounterMetric[metricName] += valParsed
-//				metricsRun.MuCounter.Unlock()
-//			}
-//		} else {
-//			w.WriteHeader(http.StatusNotImplemented)
-//		}
-//		metricsRun.SaveMetrics(saveConfig)
-//	}
-//}
-//
-//func UpdateMetricJSON(metricsRun *storage.Metrics, saveConfig *storage.SaveConfig, useHash string) func(w http.ResponseWriter, r *http.Request) {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log := zerolog.New(os.Stdout)
-//		metricsRun.GetMetrics(saveConfig)
-//		metricReq := storage.MetricsJSON{}
-//		body, err := ioutil.ReadAll(r.Body)
-//		if err != nil {
-//			log.Warn().Msg(err.Error())
-//			w.WriteHeader(http.StatusBadRequest)
-//		}
-//		if err := json.Unmarshal(body, &metricReq); err != nil {
-//			log.Warn().Msg(err.Error())
-//			w.WriteHeader(http.StatusBadRequest)
-//		}
-//		if metricReq.MType == "gauge" {
-//			if (len(useHash) > 0) && (metricReq.Hash != config.Hash(fmt.Sprintf("%s:gauge:%f", metricReq.ID, *metricReq.Value), useHash)) {
-//				w.WriteHeader(http.StatusBadRequest)
-//			} else {
-//				metricsRun.MuGauge.Lock()
-//				metricsRun.GaugeMetric[metricReq.ID] = *metricReq.Value
-//				metricsRun.MuGauge.Unlock()
-//			}
-//		} else if metricReq.MType == "counter" {
-//			if (len(useHash) > 0) && (metricReq.Hash != config.Hash(fmt.Sprintf("%s:counter:%d", metricReq.ID, *metricReq.Delta), useHash)) {
-//				w.WriteHeader(http.StatusBadRequest)
-//			} else {
-//				metricsRun.MuCounter.Lock()
-//				metricsRun.CounterMetric[metricReq.ID] += *metricReq.Delta
-//				metricsRun.MuCounter.Unlock()
-//			}
-//		} else {
-//			w.WriteHeader(http.StatusNotImplemented)
-//		}
-//		metricsRun.SaveMetrics(saveConfig)
-//		//какой-то непонятный костыль, только для 11-го инкремента?
-//		if saveConfig.ToDatabase {
-//			err = storage.UpdateRow(saveConfig, &metricReq)
-//			if err != nil {
-//				log.Warn().Msg(err.Error())
-//			}
-//		}
-//		w.WriteHeader(http.StatusOK)
-//		resBody, err := json.Marshal("{}")
-//		if err != nil {
-//			log.Warn().Msg(err.Error())
-//		}
-//		w.Write(resBody)
-//	}
-//}
-//
-//func UpdateMetrics(metricsRun *storage.Metrics, saveConfig *storage.SaveConfig) func(w http.ResponseWriter, r *http.Request) {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log := zerolog.New(os.Stdout)
-//		metricsRun.GetMetrics(saveConfig)
-//		var metricsBatch []storage.MetricsJSON
-//		body, err := ioutil.ReadAll(r.Body)
-//		if err != nil {
-//			log.Warn().Msg(err.Error())
-//			w.WriteHeader(http.StatusBadRequest)
-//		}
-//		if err := json.Unmarshal(body, &metricsBatch); err != nil {
-//			log.Warn().Msg(err.Error())
-//			w.WriteHeader(http.StatusBadRequest)
-//		}
-//		//todo: переделать на интерфейс хранения
-//		for _, metricReq := range metricsBatch {
-//			if metricReq.MType == "gauge" {
-//				metricsRun.MuGauge.Lock()
-//				metricsRun.GaugeMetric[metricReq.ID] = *metricReq.Value
-//				metricsRun.MuGauge.Unlock()
-//			} else if metricReq.MType == "counter" {
-//				metricsRun.MuCounter.Lock()
-//				metricsRun.CounterMetric[metricReq.ID] += *metricReq.Delta
-//				metricsRun.MuCounter.Unlock()
-//			}
-//		}
-//		metricsRun.SaveMetrics(saveConfig)
-//		if saveConfig.ToDatabase {
-//			err = storage.UpdateBatch(saveConfig, metricsBatch)
-//			if err != nil {
-//				log.Warn().Msg(err.Error())
-//			}
-//		}
-//	}
-//}
-//
-//func Ping(saveConfig *storage.SaveConfig) func(w http.ResponseWriter, r *http.Request) {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		log := zerolog.New(os.Stdout)
-//		if saveConfig.ToDatabase {
-//			err := storage.PingDatabase(saveConfig)
-//			if err != nil {
-//				w.WriteHeader(http.StatusInternalServerError)
-//				log.Print("err", err)
-//			} else {
-//				w.WriteHeader(http.StatusOK)
-//			}
-//		} else {
-//			w.WriteHeader(http.StatusInternalServerError)
-//			log.Print(w, "Database DSN isn't set")
-//		}
-//	}
-//}
+func GetWithdrawalsList(configRun *config.Config) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, claims, _ := jwtauth.FromContext(r.Context())
+		userID := int((claims["id_user"]).(float64))
+		isWithdraws, arrWithdraws, err := storage.ReturnWithdrawsInfoByUserID(configRun, &userID)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "GetWithdrawalsList.ReturnWithdrawsInfoByUserID",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if !isWithdraws {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		withdrawsJSON, err := json.Marshal(arrWithdraws)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"func": "GetWithdrawalsList.json.Marshal(arrWithdraws)",
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(withdrawsJSON)
+	}
+}
